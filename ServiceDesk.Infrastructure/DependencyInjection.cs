@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Infrastructure.Adapters.Ai;
+using ServiceDesk.Infrastructure.Adapters.Storage;
 using ServiceDesk.Infrastructure.Persistence;
 using ServiceDesk.Infrastructure.Persistence.Repositories;
 using ServiceDesk.Infrastructure.Services;
@@ -30,6 +31,9 @@ public static class DependencyInjection
         // Repositories
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IIncidentDraftRepository, IncidentDraftRepository>();
+
+        // Knowledge Source Store (Blob / File Storage Abstraction)
+        services.AddSingleton<IKnowledgeSourceStore, LocalFileKnowledgeSourceStore>();
 
         // AI Services & Preprocessors
         services.AddSingleton<SecretRedactionService>();
