@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Application.Services;
 using ServiceDesk.Application.Services.Agent;
+using ServiceDesk.Application.Services.Chat;
 using ServiceDesk.Application.Services.Mcp;
 using ServiceDesk.Application.UseCases;
 
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddTransient<IRagGroundingService, RagGroundingService>();
         services.AddTransient<IAgentToolDispatcher, AgentToolDispatcher>();
         services.AddTransient<IMcpServerService, McpServerService>();
+        services.AddTransient<IChatConversationService, ChatConversationService>();
 
         // Application Use Cases
         services.AddTransient<SearchKnowledgeUseCase>();
