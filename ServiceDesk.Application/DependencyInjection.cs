@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using ServiceDesk.Application.Common.Interfaces;
+using ServiceDesk.Application.Services;
 using ServiceDesk.Application.UseCases;
 
 namespace ServiceDesk.Application;
@@ -7,6 +9,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        // Application Services
+        services.AddTransient<IRagGroundingService, RagGroundingService>();
+
         // Application Use Cases
         services.AddTransient<SearchKnowledgeUseCase>();
         services.AddTransient<GetSystemStatusUseCase>();

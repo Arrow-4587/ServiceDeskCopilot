@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Infrastructure.Adapters.Ai;
+using ServiceDesk.Infrastructure.Adapters.Search;
 using ServiceDesk.Infrastructure.Adapters.Storage;
 using ServiceDesk.Infrastructure.Persistence;
 using ServiceDesk.Infrastructure.Persistence.Repositories;
@@ -35,6 +36,12 @@ public static class DependencyInjection
         // Knowledge Source Store (Blob / File Storage Abstraction)
         services.AddSingleton<IKnowledgeSourceStore, LocalFileKnowledgeSourceStore>();
 
+        // Search Adapters & Ingestion Services
+        services.AddSingleton<InMemoryKnowledgeSearchAdapter>();
+        services.AddSingleton<IKnowledgeIndexStore>(sp => sp.GetRequiredService<InMemoryKnowledgeSearchAdapter>());
+        services.AddSingleton<IKnowledgeRetriever>(sp => sp.GetRequiredService<InMemoryKnowledgeSearchAdapter>());
+        services.AddScoped<IKnowledgeIngestionService, KnowledgeIngestionService>();
+
         // AI Services & Preprocessors
         services.AddSingleton<SecretRedactionService>();
         services.AddTransient<MockAiChatModelAdapter>();
@@ -55,3 +62,4 @@ public static class DependencyInjection
         return services;
     }
 }
+
