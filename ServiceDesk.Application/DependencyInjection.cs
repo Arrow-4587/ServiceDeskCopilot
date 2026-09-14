@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddTransient<IAgentToolDispatcher, AgentToolDispatcher>();
         services.AddTransient<IMcpServerService, McpServerService>();
         services.AddTransient<IChatConversationService, ChatConversationService>();
+        services.AddTransient<IIncidentReviewerService, IncidentReviewerService>();
 
         // Application Use Cases
         services.AddTransient<SearchKnowledgeUseCase>();

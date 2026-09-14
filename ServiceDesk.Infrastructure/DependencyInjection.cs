@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<IKnowledgeIngestionService, KnowledgeIngestionService>();
 
         // AI Services & Preprocessors
+        services.AddSingleton<ISecretRedactionService, SecretRedactionService>();
         services.AddSingleton<SecretRedactionService>();
         services.AddTransient<MockAiChatModelAdapter>();
 
