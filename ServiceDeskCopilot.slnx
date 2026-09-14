@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="Application.Tests/Application.Tests.csproj" />
+  <Project Path="Domain.Tests/Domain.Tests.csproj" />
+  <Project Path="Domain/ServiceDesk.Domain.csproj" />
+  <Project Path="Integration.Tests/Integration.Tests.csproj" />
+  <Project Path="PromptEval.Tests/PromptEval.Tests.csproj" />
+  <Project Path="ServiceDesk.Application/ServiceDesk.Application.csproj" />
+  <Project Path="ServiceDesk.Infrastructure/ServiceDesk.Infrastructure.csproj" />
+  <Project Path="ServiceDesk.Web/ServiceDesk.Web.csproj" />
+  <Project Path="ServiceDesk.Worker/ServiceDesk.Worker.csproj" />
+</Solution>
