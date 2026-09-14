@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Infrastructure.Adapters.Ai;
 using ServiceDesk.Infrastructure.Adapters.Search;
+using ServiceDesk.Infrastructure.Adapters.Status;
 using ServiceDesk.Infrastructure.Adapters.Storage;
 using ServiceDesk.Infrastructure.Persistence;
 using ServiceDesk.Infrastructure.Persistence.Repositories;
@@ -33,8 +34,9 @@ public static class DependencyInjection
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IIncidentDraftRepository, IncidentDraftRepository>();
 
-        // Knowledge Source Store (Blob / File Storage Abstraction)
+        // Knowledge Source Store & Status Reader
         services.AddSingleton<IKnowledgeSourceStore, LocalFileKnowledgeSourceStore>();
+        services.AddSingleton<ISystemStatusReader, FakeSystemStatusReader>();
 
         // Search Adapters & Ingestion Services
         services.AddSingleton<InMemoryKnowledgeSearchAdapter>();
