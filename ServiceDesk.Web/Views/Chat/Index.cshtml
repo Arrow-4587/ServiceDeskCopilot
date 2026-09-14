@@ -1,0 +1,239 @@
+@model ServiceDesk.Domain.Entities.ConversationSession
+@{
+    ViewData["Title"] = "Copilot Chat";
+    var activeId = ViewBag.ActiveConversationId != null && (Guid)ViewBag.ActiveConversationId != Guid.Empty
+        ? ((Guid)ViewBag.ActiveConversationId).ToString()
+        : "";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-9">
+        <div class="glass-card p-4">
+            <!-- Header -->
+            <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary border-opacity-25">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-cyan bg-opacity-10 p-2 text-info">
+                        <i class="bi bi-robot fs-3"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-0 text-white font-weight-bold">Enterprise IT Copilot</h4>
+                        <small class="text-muted">Grounded RAG Assistant & Automated ITSM Dispatch</small>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="@Url.Action("Index", "Chat")" class="btn btn-outline-info btn-sm rounded-pill px-3">
+                        <i class="bi bi-plus-lg me-1"></i> New Conversation
+                    </a>
+                </div>
+            </div>
+
+            <!-- Chat History Area -->
+            <div id="chatWindow" class="p-3 mb-3 rounded" style="min-height: 400px; max-height: 550px; overflow-y: auto; background: rgba(10, 15, 26, 0.6); border: 1px solid var(--border-glass);">
+                @if (Model != null && Model.Messages.Any())
+                {
+                    foreach (var msg in Model.Messages)
+                    {
+                        if (msg.SenderRole.Equals("User", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="d-flex justify-content-end mb-3">
+                                <div class="chat-bubble-user">
+                                    <div>@msg.Content</div>
+                                    <div class="text-end text-white-50 mt-1" style="font-size: 0.75rem;">@msg.Timestamp.ToLocalTime().ToString("g")</div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-start mb-3">
+                                <div class="chat-bubble-assistant">
+                                    <div class="d-flex align-items-center gap-2 mb-2 text-info small">
+                                        <i class="bi bi-cpu-fill"></i> <strong>Copilot Response</strong>
+                                    </div>
+                                    <div>@msg.Content</div>
+                                    @if (msg.Citations != null && msg.Citations.Any())
+                                    {
+                                        <div class="mt-2 pt-2 border-top border-secondary border-opacity-25">
+                                            <span class="text-muted small d-block mb-1"><i class="bi bi-journal-bookmark me-1"></i> Citations & Sources:</span>
+                                            @foreach (var c in msg.Citations)
+                                            {
+                                                <span class="citation-chip">
+                                                    <i class="bi bi-file-earmark-text me-1"></i> @c.DocumentName (@c.Section)
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <div id="emptyState" class="text-center py-5">
+                        <i class="bi bi-chat-left-dots text-secondary fs-1 mb-3 d-block"></i>
+                        <h5 class="text-light">How can I assist your IT needs today?</h5>
+                        <p class="text-muted small max-w-md mx-auto">
+                            Ask about company IT policies, VPN setup, password resets, system outage status, or report an infrastructure issue.
+                        </p>
+                        <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
+                            <button class="btn btn-outline-secondary btn-sm rounded-pill sample-prompt">VPN connection keeps dropping</button>
+                            <button class="btn btn-outline-secondary btn-sm rounded-pill sample-prompt">Check Azure DevOps status</button>
+                            <button class="btn btn-outline-secondary btn-sm rounded-pill sample-prompt">How do I request a developer laptop?</button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Input Area -->
+            <form id="chatForm" class="mt-3">
+                <input type="hidden" id="conversationId" value="@activeId" />
+                <div class="input-group">
+                    <textarea id="userMessage" class="form-control bg-dark text-light border-secondary" rows="2" placeholder="Type your message or IT issue..." style="resize: none;" required></textarea>
+                    <button type="submit" id="btnSend" class="btn btn-gradient px-4 d-flex align-items-center gap-2">
+                        <span>Send</span> <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        const chatWindow = $('#chatWindow');
+        const chatForm = $('#chatForm');
+        const userMessageInput = $('#userMessage');
+        const btnSend = $('#btnSend');
+        const conversationIdInput = $('#conversationId');
+
+        function scrollToBottom() {
+            chatWindow.scrollTop(chatWindow[0].scrollHeight);
+        }
+        scrollToBottom();
+
+        $('.sample-prompt').click(function() {
+            userMessageInput.val($(this).text());
+            chatForm.submit();
+        });
+
+        userMessageInput.keypress(function(e) {
+            if (e.which === 13 && !e.shiftKey) {
+                e.preventDefault();
+                chatForm.submit();
+            }
+        });
+
+        chatForm.submit(function(e) {
+            e.preventDefault();
+            const messageText = userMessageInput.val().trim();
+            if (!messageText) return;
+
+            $('#emptyState').remove();
+
+            // Append User Message
+            const userHtml = `
+                <div class="d-flex justify-content-end mb-3">
+                    <div class="chat-bubble-user">
+                        <div>${escapeHtml(messageText)}</div>
+                        <div class="text-end text-white-50 mt-1" style="font-size: 0.75rem;">Just now</div>
+                    </div>
+                </div>`;
+            chatWindow.append(userHtml);
+            userMessageInput.val('');
+            scrollToBottom();
+
+            // Append Loading Indicator
+            const loadingId = 'loading-' + Date.now();
+            const loadingHtml = `
+                <div id="${loadingId}" class="d-flex justify-content-start mb-3">
+                    <div class="chat-bubble-assistant">
+                        <div class="d-flex align-items-center gap-2 text-info">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span>Analyzing knowledge base & AI models...</span>
+                        </div>
+                    </div>
+                </div>`;
+            chatWindow.append(loadingHtml);
+            scrollToBottom();
+            btnSend.prop('disabled', true);
+
+            const convId = conversationIdInput.val() ? conversationIdInput.val() : null;
+
+            $.ajax({
+                url: '/Chat/SendMessage',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    conversationId: convId,
+                    userMessage: messageText
+                }),
+                success: function(data) {
+                    $('#' + loadingId).remove();
+                    btnSend.prop('disabled', false);
+
+                    if (data.conversationId) {
+                        conversationIdInput.val(data.conversationId);
+                    }
+
+                    let citationsHtml = '';
+                    if (data.citations && data.citations.length > 0) {
+                        citationsHtml = '<div class="mt-2 pt-2 border-top border-secondary border-opacity-25"><span class="text-muted small d-block mb-1"><i class="bi bi-journal-bookmark me-1"></i> Grounded Sources:</span>';
+                        data.citations.forEach(c => {
+                            citationsHtml += `<span class="citation-chip" title="Score: ${c.relevanceScore}"><i class="bi bi-file-earmark-text me-1"></i> ${escapeHtml(c.documentName)} (${escapeHtml(c.sectionTitle)})</span>`;
+                        });
+                        citationsHtml += '</div>';
+                    }
+
+                    let proposalHtml = '';
+                    if (data.suggestedIncidentDraft) {
+                        proposalHtml = `
+                            <div class="proposal-banner">
+                                <div class="d-flex align-items-center gap-2 text-warning font-weight-bold mb-1">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> Incident Ticket Draft Proposed
+                                </div>
+                                <div class="text-light small mb-2">
+                                    <strong>Title:</strong> ${escapeHtml(data.suggestedTitle || 'New IT Support Ticket')}
+                                </div>
+                                <a href="/Incident" class="btn btn-sm btn-warning font-weight-semibold">
+                                    <i class="bi bi-shield-check me-1"></i> Review & Submit Ticket Draft
+                                </a>
+                            </div>`;
+                    }
+
+                    const assistantHtml = `
+                        <div class="d-flex justify-content-start mb-3">
+                            <div class="chat-bubble-assistant">
+                                <div class="d-flex align-items-center gap-2 mb-2 text-info small">
+                                    <i class="bi bi-cpu-fill"></i> <strong>Copilot Response</strong>
+                                </div>
+                                <div>${escapeHtml(data.answer).replace(/\n/g, '<br/>')}</div>
+                                ${citationsHtml}
+                                ${proposalHtml}
+                            </div>
+                        </div>`;
+                    chatWindow.append(assistantHtml);
+                    scrollToBottom();
+                },
+                error: function(err) {
+                    $('#' + loadingId).remove();
+                    btnSend.prop('disabled', false);
+                    const errorHtml = `
+                        <div class="d-flex justify-content-start mb-3">
+                            <div class="chat-bubble-assistant border-danger text-danger">
+                                <i class="bi bi-exclamation-octagon-fill me-1"></i> An error occurred processing your request. Please try again.
+                            </div>
+                        </div>`;
+                    chatWindow.append(errorHtml);
+                    scrollToBottom();
+                }
+            });
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    });
+</script>
+}

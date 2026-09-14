@@ -1,46 +1,77 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - ServiceDesk.Web</title>
+    <title>@ViewData["Title"] - IT Service Desk Copilot</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/ServiceDesk.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">ServiceDesk.Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+        <nav class="navbar navbar-expand-lg navbar-dark style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-glass);">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center gap-2 font-weight-bold" asp-area="" asp-controller="Chat" asp-action="Index">
+                    <i class="bi bi-robot text-info fs-4"></i>
+                    <span style="background: linear-gradient(135deg, #06b6d4, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; font-size: 1.25rem;">
+                        IT Service Desk Copilot
+                    </span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+                <div class="collapse navbar-collapse" id="navbarMain">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link text-light px-3" asp-controller="Chat" asp-action="Index">
+                                <i class="bi bi-chat-left-text me-1 text-cyan"></i> Copilot Chat
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link text-light px-3" asp-controller="Incident" asp-action="Index">
+                                <i class="bi bi-ticket-perforated me-1 text-warning"></i> Incident Workspace
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light px-3" asp-controller="Status" asp-action="Index">
+                                <i class="bi bi-activity me-1 text-success"></i> System Status
+                            </a>
                         </li>
                     </ul>
+
+                    <div class="d-flex align-items-center gap-3">
+                        @if (User?.Identity?.IsAuthenticated == true)
+                        {
+                            <span class="text-secondary small">
+                                <i class="bi bi-person-circle me-1"></i> @User.Identity.Name
+                            </span>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a asp-controller="Account" asp-action="Login" class="btn btn-gradient btn-sm">Sign In</a>
+                        }
+                    </div>
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+
+    <div class="container py-4">
+        <main role="main">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
+    <footer class="footer mt-auto py-3 text-center text-muted border-top border-dark small">
         <div class="container">
-            &copy; 2026 - ServiceDesk.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            &copy; 2026 Enterprise IT Service Desk Copilot v3. Grounded & Policy-Enforced.
         </div>
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
