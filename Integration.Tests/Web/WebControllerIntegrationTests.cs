@@ -89,6 +89,121 @@ public class WebControllerIntegrationTests
     }
 
     [Test]
+    public async Task ChatController_Index_Employee_AccessingOtherUserConversation_ReturnsForbidResult()
+    {
+        var otherUserId = Guid.NewGuid();
+        var session = new ConversationSession(otherUserId);
+        await _conversationRepository.AddAsync(session);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.Index(session.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ForbidResult>());
+    }
+
+    [Test]
+    public async Task ChatController_GetConversationApi_OtherUserEmployee_ReturnsForbidResult()
+    {
+        var otherUserId = Guid.NewGuid();
+        var session = new ConversationSession(otherUserId);
+        await _conversationRepository.AddAsync(session);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.GetConversationApi(session.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ForbidResult>());
+    }
+
+    [Test]
+    public async Task ChatController_GetConversationApi_ValidUser_ReturnsJsonResultWithMessages()
+    {
+        var session = new ConversationSession(_userContext.UserId);
+        session.AddUserMessage("How do I connect to VPN?");
+        session.AddAssistantMessage("Use Cisco AnyConnect with your corporate credentials.");
+        await _conversationRepository.AddAsync(session);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.GetConversationApi(session.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<JsonResult>());
+        var jsonResult = (JsonResult)result;
+        var detail = jsonResult.Value as ConversationDetailDto;
+        Assert.That(detail, Is.Not.Null);
+        Assert.That(detail!.Messages.Count, Is.EqualTo(2));
+        Assert.That(detail.Messages[0].Content, Is.EqualTo("How do I connect to VPN?"));
+    }
+
+    [Test]
+    public async Task ChatController_HistoryApi_SearchFilter_ReturnsMatchingConversations()
+    {
+        var session1 = new ConversationSession(_userContext.UserId);
+        session1.AddUserMessage("VPN connection dropping");
+        await _conversationRepository.AddAsync(session1);
+
+        var session2 = new ConversationSession(_userContext.UserId);
+        session2.AddUserMessage("Printer paper jam");
+        await _conversationRepository.AddAsync(session2);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.HistoryApi(1, 10, "VPN", "all", CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<JsonResult>());
+        var jsonResult = (JsonResult)result;
+        var paged = jsonResult.Value as PaginatedConversationHistoryDto;
+        Assert.That(paged, Is.Not.Null);
+        Assert.That(paged!.TotalCount, Is.EqualTo(1));
+        Assert.That(paged.Items[0].Id, Is.EqualTo(session1.Id));
+    }
+
+    [Test]
     public async Task IncidentController_Index_ReturnsViewResultWithDrafts()
     {
         var draft = new IncidentDraft(_userContext.UserId, "VPN Issue", "Cannot connect to corporate VPN", "Network", IncidentImpact.Medium, IncidentUrgency.Medium);
@@ -192,6 +307,77 @@ public class WebControllerIntegrationTests
         {
             var list = _store.Values.ToList();
             return Task.FromResult<IReadOnlyList<ConversationSession>>(list);
+        }
+
+        public Task<PaginatedConversationHistoryDto> GetPagedSummariesAsync(
+            Guid? userId,
+            int page,
+            int pageSize,
+            string? search,
+            string? timeFilter,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _store.Values.AsQueryable();
+            if (userId.HasValue && userId.Value != Guid.Empty)
+            {
+                query = query.Where(s => s.UserId == userId.Value);
+            }
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.Trim().ToLower();
+                query = query.Where(s => s.Messages.Any(m => m.Content.ToLower().Contains(searchLower)));
+            }
+            if (!string.IsNullOrWhiteSpace(timeFilter))
+            {
+                var now = DateTime.UtcNow;
+                var todayStart = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc);
+                switch (timeFilter.ToLower().Trim())
+                {
+                    case "today":
+                        query = query.Where(s => s.StartedAt >= todayStart);
+                        break;
+                    case "yesterday":
+                        var yesterdayStart = todayStart.AddDays(-1);
+                        query = query.Where(s => s.StartedAt >= yesterdayStart && s.StartedAt < todayStart);
+                        break;
+                    case "week":
+                    case "7days":
+                        var weekStart = todayStart.AddDays(-7);
+                        query = query.Where(s => s.StartedAt >= weekStart);
+                        break;
+                    case "older":
+                        var olderStart = todayStart.AddDays(-7);
+                        query = query.Where(s => s.StartedAt < olderStart);
+                        break;
+                }
+            }
+
+            var totalCount = query.Count();
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+            var pagedSessions = query
+                .OrderByDescending(s => s.StartedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var items = pagedSessions.Select(s => {
+                var firstMsg = s.Messages.FirstOrDefault();
+                var firstUserMsg = s.Messages.FirstOrDefault(m => m.SenderRole == "User");
+                var lastMsg = s.Messages.LastOrDefault();
+                return new ConversationSummaryDto(
+                    s.Id,
+                    firstMsg != null ? firstMsg.Content : "New Conversation",
+                    firstUserMsg != null ? firstUserMsg.Content : "",
+                    lastMsg != null ? lastMsg.Timestamp : s.StartedAt,
+                    s.Messages.Count,
+                    s.IsActive
+                );
+            }).ToList();
+
+            return Task.FromResult(new PaginatedConversationHistoryDto(items, page, pageSize, totalCount, totalPages));
         }
     }
 

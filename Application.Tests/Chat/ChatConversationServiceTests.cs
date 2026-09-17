@@ -46,6 +46,53 @@ public class ChatConversationServiceTests
             var list = _store.Values.ToList();
             return Task.FromResult<IReadOnlyList<ConversationSession>>(list);
         }
+
+        public Task<PaginatedConversationHistoryDto> GetPagedSummariesAsync(
+            Guid? userId,
+            int page,
+            int pageSize,
+            string? search,
+            string? timeFilter,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _store.Values.AsQueryable();
+            if (userId.HasValue && userId.Value != Guid.Empty)
+            {
+                query = query.Where(s => s.UserId == userId.Value);
+            }
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.Trim().ToLower();
+                query = query.Where(s => s.Messages.Any(m => m.Content.ToLower().Contains(searchLower)));
+            }
+
+            var totalCount = query.Count();
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+            var pagedSessions = query
+                .OrderByDescending(s => s.StartedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var items = pagedSessions.Select(s => {
+                var firstMsg = s.Messages.FirstOrDefault();
+                var firstUserMsg = s.Messages.FirstOrDefault(m => m.SenderRole == "User");
+                var lastMsg = s.Messages.LastOrDefault();
+                return new ConversationSummaryDto(
+                    s.Id,
+                    firstMsg != null ? firstMsg.Content : "New Conversation",
+                    firstUserMsg != null ? firstUserMsg.Content : "",
+                    lastMsg != null ? lastMsg.Timestamp : s.StartedAt,
+                    s.Messages.Count,
+                    s.IsActive
+                );
+            }).ToList();
+
+            return Task.FromResult(new PaginatedConversationHistoryDto(items, page, pageSize, totalCount, totalPages));
+        }
     }
 
     private class FakeRagService : IRagGroundingService
