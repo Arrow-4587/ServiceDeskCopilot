@@ -1,0 +1,154 @@
+@model IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>?
+@{
+    var initialDocs = Model ?? Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
+    var hasInitialDocs = initialDocs.Any();
+}
+
+<div class="card border-0 shadow-sm rounded-4 mb-4 kb-widget-container" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+    <div class="card-header bg-transparent py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-bottom" style="border-color:var(--border-soft) !important;">
+        <div>
+            <h5 class="mb-0 fw-700" style="color:var(--text-heading);font-size:1.15rem;">
+                <i class="bi bi-journal-bookmark-fill me-2" style="color:var(--accent-violet, #7c3aed);"></i>Enterprise Knowledge Base
+            </h5>
+            <p class="text-muted small mb-0 mt-1">
+                Browse official, approved IT policies, setup guides, and troubleshooting procedures grounded by Azure AI.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span id="kbCountBadge" class="badge rounded-pill px-3 py-1.5" style="background:var(--brand-blue-light, rgba(37,99,235,0.1));color:var(--brand-blue, #2563eb);border:1px solid var(--brand-blue, #2563eb);font-weight:600;font-size:0.8rem;">
+                @(hasInitialDocs ? initialDocs.Count : 0) Approved Documents
+            </span>
+        </div>
+    </div>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="p-3 border-bottom" style="background:var(--bg-surface-alt, rgba(0,0,0,0.02));border-color:var(--border-soft) !important;">
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text border-end-0" style="background:var(--bg-surface);border-color:var(--border-soft);color:var(--text-muted);">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="kbSearchInput" class="form-control border-start-0" placeholder="Search title, section, or content..."
+                           style="background:var(--bg-surface);border-color:var(--border-soft);color:var(--text-heading);" aria-label="Search Knowledge Documents" />
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <select id="kbCategoryFilter" class="form-select form-select-sm" style="background:var(--bg-surface);border-color:var(--border-soft);color:var(--text-heading);" aria-label="Filter by Category">
+                    <option value="">All Categories &amp; Sections</option>
+                    @if (hasInitialDocs)
+                    {
+                        var sections = initialDocs.Select(d => d.Section).Distinct().OrderBy(s => s);
+                        foreach (var sec in sections)
+                        {
+                            <option value="@sec">@sec</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3 text-end">
+                <button type="button" id="btnResetKbFilters" class="btn btn-sm btn-outline-secondary w-100" style="border-radius:8px;">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="card-body p-4">
+
+        <!-- Loading State (Skeleton) -->
+        <div id="kbLoadingState" class="py-4" style="@(hasInitialDocs ? "display:none;" : "")">
+            <div class="text-center mb-3">
+                <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                <span class="text-muted small">Loading knowledge documents from Azure Blob Storage...</span>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6 col-lg-4"><div class="kb-skeleton-card p-3 rounded-3"></div></div>
+                <div class="col-md-6 col-lg-4"><div class="kb-skeleton-card p-3 rounded-3"></div></div>
+                <div class="col-md-6 col-lg-4"><div class="kb-skeleton-card p-3 rounded-3"></div></div>
+            </div>
+        </div>
+
+        <!-- Error State Alert (Azure Failure) -->
+        <div id="kbErrorState" class="alert alert-danger glass-card rounded-3 mb-0" style="display:none;" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill fs-4 text-danger"></i>
+                <div>
+                    <h6 class="fw-bold mb-1">Knowledge Source Unavailable</h6>
+                    <span id="kbErrorMessage" class="small">Azure Blob Storage container is currently inaccessible. Local file fallback is disabled per security guidelines.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty Search State -->
+        <div id="kbEmptyState" class="text-center py-5" style="display:none;">
+            <i class="bi bi-journal-x fs-1 text-muted opacity-50 d-block mb-2"></i>
+            <h6 class="fw-semibold" style="color:var(--text-heading);">No Approved Documents Found</h6>
+            <p class="text-muted small mb-0">Try adjusting your search terms or filter selection.</p>
+        </div>
+
+        <!-- Knowledge Cards Grid -->
+        <div id="kbGridContainer" class="row g-3" data-paginate="10">
+            @if (hasInitialDocs)
+            {
+                foreach (var doc in initialDocs)
+                {
+                    var catColor = doc.Section switch
+                    {
+                        "Security & Access" => "#ef4444",
+                        "Network & Connectivity" => "#3b82f6",
+                        "Devices & Hardware" => "#f59e0b",
+                        _ => "#7c3aed"
+                    };
+                    var catIcon = doc.Section switch
+                    {
+                        "Security & Access" => "bi-shield-lock-fill",
+                        "Network & Connectivity" => "bi-wifi",
+                        "Devices & Hardware" => "bi-pc-display",
+                        _ => "bi-file-earmark-text-fill"
+                    };
+
+                    <div class="col-12 col-md-6 col-lg-6 kb-card-col" data-title="@doc.DocumentName.ToLower()" data-section="@doc.Section.ToLower()">
+                        <div class="card h-100 kb-doc-card rounded-3 p-3 transition-all"
+                             style="background:var(--bg-surface);border:1px solid var(--border-soft);cursor:pointer;"
+                             onclick="window.openKnowledgeDocument('@doc.Id')">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="rounded-3 p-2 d-flex align-items-center justify-content-center flex-shrink-0"
+                                     style="background:rgba(124,58,237,0.1);width:42px;height:42px;">
+                                    <i class="bi @catIcon" style="color:@catColor;font-size:1.25rem;"></i>
+                                </div>
+                                <div class="flex-grow-1 min-w-0">
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                        <h6 class="fw-bold mb-0 text-truncate" style="color:var(--text-heading);font-size:0.95rem;" title="@doc.DocumentName">
+                                            @doc.DocumentName
+                                        </h6>
+                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:0.7rem;">v@doc.Version</span>
+                                    </div>
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="font-size:0.78rem;color:var(--text-muted);">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
+                                            <i class="bi bi-folder2-open me-1"></i>@doc.Section
+                                        </span>
+                                        <span><i class="bi bi-clock me-1"></i>@doc.LastModified.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                                    </div>
+                                    <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top" style="border-color:var(--border-soft) !important;">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size:0.7rem;">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Approved &amp; Active
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" style="font-size:0.8rem;color:var(--brand-blue, #2563eb);">
+                                            Read Document <i class="bi bi-arrow-right ms-1"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal Document Viewer Component -->
+@await Html.PartialAsync("_KnowledgeDocumentModal")

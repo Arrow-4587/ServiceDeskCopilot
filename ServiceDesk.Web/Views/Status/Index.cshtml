@@ -1,6 +1,7 @@
 @model IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>
 @{
     ViewData["Title"] = "System Status Dashboard";
+    var approvedDocs = ViewBag.ApprovedDocs as IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> ?? Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
 }
 
 <div class="dashboard-page w-100">
@@ -66,4 +67,8 @@
                 }
             </div>
         }
+
+        <div class="mt-4">
+            @await Html.PartialAsync("_KnowledgeBasePartial", approvedDocs)
+        </div>
 </div>

@@ -991,3 +991,263 @@ td.text-secondary { color: var(--text-muted) !important; }
   border-left-color: rgba(239,68,68,0.3) !important;
 }
 
+/* ─────────────────────────────────────────────
+   COPY RESPONSE BUTTON & MESSAGE TIME ROW
+───────────────────────────────────────────── */
+.msg-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.msg-time-row .msg-time {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 0;
+  padding: 0;
+}
+
+.btn-copy-response {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-faint);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.15s;
+  user-select: none;
+}
+
+.btn-copy-response:hover {
+  color: var(--brand-blue);
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.btn-copy-response:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.btn-copy-response i {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.btn-copy-response.copied {
+  color: var(--success, #10b981) !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.btn-copy-response.copy-failed {
+  color: var(--danger, #ef4444) !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.btn-copy-widget {
+  padding: 1px 6px;
+  font-size: 10.5px;
+  border-radius: 5px;
+}
+
+/* ─────────────────────────────────────────────
+   PAGINATION CONTROL STYLES
+───────────────────────────────────────────── */
+.table-pagination-wrapper {
+  background: var(--bg-surface-alt);
+  border-top: 1px solid var(--border-soft) !important;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.table-pagination-wrapper .pagination {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-pagination-wrapper .page-link {
+  color: var(--text-body);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 6px) !important;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-pagination-wrapper .page-link:hover:not([disabled]) {
+  color: var(--brand-blue);
+  background: var(--bg-hover);
+  border-color: var(--border-focus);
+}
+
+.table-pagination-wrapper .page-item.active .page-link {
+  color: #ffffff !important;
+  background: var(--brand-blue) !important;
+  border-color: var(--brand-blue) !important;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.table-pagination-wrapper .page-link[disabled],
+.table-pagination-wrapper .page-item.disabled .page-link {
+  color: var(--text-faint) !important;
+  background: var(--bg-muted) !important;
+  border-color: var(--border-soft) !important;
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.table-pagination-wrapper .page-link:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+/* ─────────────────────────────────────────────
+   KNOWLEDGE BASE & MARKDOWN VIEWER STYLES
+───────────────────────────────────────────── */
+.kb-doc-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kb-doc-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--brand-blue, #2563eb) !important;
+  box-shadow: var(--shadow-md);
+}
+
+.kb-skeleton-card {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-soft);
+  height: 110px;
+  animation: kb-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes kb-skeleton-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Markdown typography & content layout */
+.markdown-body {
+  color: var(--text-body);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.7;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  color: var(--text-heading);
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.markdown-body h1 { font-size: 1.5rem; border-bottom: 1px solid var(--border-soft); padding-bottom: 0.4rem; }
+.markdown-body h2 { font-size: 1.3rem; border-bottom: 1px solid var(--border-soft); padding-bottom: 0.3rem; }
+.markdown-body h3 { font-size: 1.15rem; }
+.markdown-body h4 { font-size: 1.05rem; }
+
+.markdown-body p {
+  margin-bottom: 1rem;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.markdown-body li {
+  margin-bottom: 0.35rem;
+}
+
+.markdown-body blockquote {
+  padding: 10px 16px;
+  margin: 1rem 0;
+  color: var(--text-muted);
+  background: var(--bg-surface-alt);
+  border-left: 4px solid var(--brand-blue, #2563eb);
+  border-radius: 4px;
+}
+
+.markdown-body table {
+  width: 100%;
+  margin-bottom: 1.25rem;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+}
+
+.markdown-body table th {
+  background: var(--bg-surface-alt);
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+.markdown-body code {
+  background: var(--bg-surface-alt);
+  color: var(--brand-indigo, #4f46e5);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  border: 1px solid var(--border-soft);
+}
+
+.markdown-body pre {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 14px;
+  overflow-x: auto;
+  margin-bottom: 1.25rem;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: var(--text-heading);
+  font-size: 0.88rem;
+}
+
+.markdown-body a {
+  color: var(--brand-blue, #2563eb);
+  text-decoration: underline;
+}
+
+.markdown-body a:hover {
+  color: var(--brand-indigo, #4f46e5);
+}
+
+
+
+

@@ -21,6 +21,7 @@ public class IncidentDraftRepository : IIncidentDraftRepository
     public async Task<IReadOnlyList<IncidentDraft>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.IncidentDrafts
+            .AsNoTracking()
             .Where(i => i.UserId == userId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -29,6 +30,7 @@ public class IncidentDraftRepository : IIncidentDraftRepository
     public async Task<IReadOnlyList<IncidentDraft>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.IncidentDrafts
+            .AsNoTracking()
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
     }

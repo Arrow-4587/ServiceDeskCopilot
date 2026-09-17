@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddTransient<IIncidentReviewerService, IncidentReviewerService>();
         services.AddTransient<IPlannerService, PlannerService>();
         services.AddTransient<ISupportSpecialistService, SupportSpecialistService>();
+        services.AddTransient<IKnowledgeBaseService, ServiceDesk.Application.Services.Knowledge.KnowledgeBaseService>();
         services.AddTransient<AgentWorkflowCoordinator>();
         services.AddTransient<IAgentWorkflow, AgentWorkflowCoordinator>();
 

@@ -2,6 +2,7 @@
 @using ServiceDesk.Domain.Enums
 @{
     ViewData["Title"] = "Incident Draft Workspace";
+    var approvedDocs = ViewBag.ApprovedDocs as IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> ?? Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
 }
 
 <div class="dashboard-page w-100">
@@ -52,7 +53,7 @@
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);--bs-table-hover-bg:var(--bg-hover);">
+                    <table class="table table-hover align-middle mb-0" data-paginate="10" style="--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);--bs-table-hover-bg:var(--bg-hover);">
                         <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;">
                             <tr>
                                 <th>Ticket Title</th>
@@ -119,5 +120,9 @@
                     </table>
                 </div>
             }
+        </div>
+
+        <div class="mt-4">
+            @await Html.PartialAsync("_KnowledgeBasePartial", approvedDocs)
         </div>
 </div>

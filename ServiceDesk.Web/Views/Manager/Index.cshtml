@@ -3,7 +3,7 @@
     ViewData["Title"] = "Manager Dashboard";
     var agents = ViewBag.AgentMetrics as IEnumerable<ManagerAgentMetric> ?? Enumerable.Empty<ManagerAgentMetric>();
     var chatHistory = ViewBag.ChatHistory as List<ConversationSession> ?? new();
-    var knowledgeFiles = ViewBag.KnowledgeFiles as List<ManagerKnowledgeFile> ?? new();
+    var approvedDocs = ViewBag.ApprovedDocs as IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> ?? Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
     var auditLogs = ViewBag.AuditLogs as List<AuditLog> ?? new();
     var totalRequests = (int)(ViewBag.TotalRequests ?? 0);
     var totalTokens = (int)(ViewBag.TotalTokens ?? 0);
@@ -161,15 +161,15 @@
                         @auditLogs.Count Events
                     </span>
                 </div>
-                <div style="max-height:340px;overflow-y:auto;">
-                    <table style="width:100%;border-collapse:collapse;">
+                <div>
+                    <table class="table align-middle mb-0" data-paginate="10" style="width:100%;border-collapse:collapse;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
                         <thead>
                             <tr>
-                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Timestamp</th>
-                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">User</th>
-                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Role</th>
-                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Action</th>
-                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Details</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);">Timestamp</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);">User</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);">Role</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);">Action</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);">Details</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -197,7 +197,7 @@
                             }
                             else
                             {
-                                <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;"><i class="bi bi-info-circle me-2"></i>No activity logs found.</td></tr>
+                                <tr class="no-paginate"><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;"><i class="bi bi-info-circle me-2"></i>No activity logs found.</td></tr>
                             }
                         </tbody>
                     </table>
@@ -219,7 +219,7 @@
 
                 @if (chatHistory.Any())
                 {
-                    <div style="padding:8px;">
+                    <div id="managerChatHistoryList" data-paginate="10" style="padding:8px;">
                         @foreach (var session in chatHistory.OrderByDescending(s => s.Messages.LastOrDefault()?.Timestamp ?? DateTime.MinValue))
                         {
                             var firstMsg = session.Messages.FirstOrDefault()?.Content ?? "New conversation";
@@ -265,75 +265,7 @@
 
         @* ─── TAB 3: KNOWLEDGE BASE ──────────────────────────────────────── *@
         <div class="tab-pane fade" id="tab-kb" role="tabpanel">
-
-            @* Search + Info bar *@
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <div style="flex:1;position:relative;">
-                    <i class="bi bi-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:13px;pointer-events:none;"></i>
-                    <input type="text" id="kbSearch" placeholder="Search knowledge documents…"
-                           style="width:100%;padding:9px 12px 9px 36px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.15s;"
-                           onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-                </div>
-                <div style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">
-                    <i class="bi bi-files me-1"></i> @knowledgeFiles.Count documents · Grounding Copilot answers
-                </div>
-            </div>
-
-            @* Category groups *@
-            @{
-                var categories = knowledgeFiles.GroupBy(f => f.Category).OrderBy(g => g.Key);
-            }
-            @foreach (var group in categories)
-            {
-                <div class="kb-category" style="margin-bottom:20px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                        <span style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;">@group.Key</span>
-                        <div style="flex:1;height:1px;background:var(--border);"></div>
-                        <span style="font-size:11px;color:var(--text-secondary);">@group.Count() files</span>
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
-                        @foreach (var kf in group)
-                        {
-                            var catColor = kf.Category switch
-                            {
-                                "Security & Access" => "#ef4444",
-                                "Network & Connectivity" => "#3b82f6",
-                                "Devices & Hardware" => "#f59e0b",
-                                _ => "#7c3aed"
-                            };
-                            var catIcon = kf.Category switch
-                            {
-                                "Security & Access" => "bi-shield-lock",
-                                "Network & Connectivity" => "bi-wifi",
-                                "Devices & Hardware" => "bi-pc-display",
-                                _ => "bi-code-square"
-                            };
-                            <div class="kb-card" data-title="@kf.Title.ToLower()" data-cat="@kf.Category.ToLower()"
-                                 style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:flex-start;gap:12px;transition:border-color 0.15s,box-shadow 0.15s;"
-                                 onmouseover="this.style.borderColor='@catColor';this.style.boxShadow='0 2px 12px rgba(0,0,0,0.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow=''">
-                                <div style="width:38px;height:38px;border-radius:9px;background:rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(0,0,0,0.06);">
-                                    <i class="bi @catIcon" style="color:@catColor;font-size:16px;"></i>
-                                </div>
-                                <div style="flex:1;min-width:0;">
-                                    <div style="font-size:13px;font-weight:600;color:var(--text-primary);line-height:1.3;margin-bottom:4px;">@kf.Title</div>
-                                    <div style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                        <span><i class="bi bi-file-earmark-text me-1"></i>@kf.FileName</span>
-                                        <span>·</span>
-                                        <span><i class="bi bi-hdd me-1"></i>@kf.SizeFormatted</span>
-                                        <span>·</span>
-                                        <span><i class="bi bi-calendar3 me-1"></i>@kf.LastModified.ToLocalTime().ToString("MMM dd, yyyy")</span>
-                                    </div>
-                                    <div style="margin-top:8px;">
-                                        <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(5,150,105,0.1);color:#059669;border:1px solid rgba(5,150,105,0.2);">
-                                            <i class="bi bi-check-circle-fill"></i> Grounded · Active
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
+            @await Html.PartialAsync("_KnowledgeBasePartial", approvedDocs)
         </div>
 
     </div>@* /tab-content *@
@@ -356,24 +288,23 @@
 $(document).ready(function () {
     // KB search filter
     $('#kbSearch').on('input', function () {
-        var q = $(this).val().toLowerCase();
-        if (!q) {
-            $('.kb-card').show();
-            $('.kb-category').show();
-            return;
-        }
-        $('.kb-category').each(function () {
-            var hasVisible = false;
-            $(this).find('.kb-card').each(function () {
-                var title = $(this).data('title') || '';
-                var cat = $(this).data('cat') || '';
-                var visible = title.includes(q) || cat.includes(q);
-                $(this).toggle(visible);
-                if (visible) hasVisible = true;
-            });
-            $(this).toggle(hasVisible);
+        var q = $(this).val().toLowerCase().trim();
+        $('.kb-card').each(function () {
+            var title = $(this).data('title') || '';
+            var cat = $(this).data('cat') || '';
+            var visible = !q || title.includes(q) || cat.includes(q);
+            if (visible) {
+                delete this.dataset.filteredOut;
+            } else {
+                this.dataset.filteredOut = 'true';
+            }
         });
+        const kbContainer = document.getElementById('kbContainer');
+        if (kbContainer && kbContainer.tablePaginator) {
+            kbContainer.tablePaginator.update(true);
+        }
     });
 });
 </script>
 }
+

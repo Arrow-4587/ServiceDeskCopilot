@@ -36,7 +36,7 @@ public class AccountController : Controller
         if (!ModelState.IsValid)
             return View(model);
 
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.Trim().ToLower());
+        var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email.ToLower() == model.Email.Trim().ToLower());
 
         if (user == null || (!string.IsNullOrEmpty(model.Password) && !user.VerifyPassword(model.Password) && model.Password.Trim() != "Password123!"))
         {

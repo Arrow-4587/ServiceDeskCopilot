@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ public class KnowledgeIngestionService : IKnowledgeIngestionService
     private readonly IKnowledgeSourceStore _sourceStore;
     private readonly IKnowledgeIndexStore _indexStore;
     private readonly ILogger<KnowledgeIngestionService> _logger;
+    private static readonly SemaphoreSlim IngestionLock = new(1, 1);
 
     public KnowledgeIngestionService(
         IKnowledgeSourceStore sourceStore,
@@ -24,25 +26,46 @@ public class KnowledgeIngestionService : IKnowledgeIngestionService
 
     public async Task<int> IngestApprovedKnowledgeDocumentsAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Starting knowledge ingestion pipeline...");
-        var sourceDocs = await _sourceStore.GetApprovedSourceDocumentsAsync(cancellationToken);
-
-        // Grounding Invariant: Only approved AND active documents may be ingested
-        var validDocs = sourceDocs.Where(d => d.Approved && d.Active).ToList();
-        _logger.LogInformation("Fetched {TotalCount} documents from source store. {ApprovedCount} passed Grounding Invariant filter.", sourceDocs.Count, validDocs.Count);
-
-        var allChunks = new List<KnowledgeDocumentDto>();
-
-        foreach (var doc in validDocs)
+        if (!await IngestionLock.WaitAsync(0, cancellationToken))
         {
-            var docChunks = ChunkDocument(doc);
-            allChunks.AddRange(docChunks);
+            _logger.LogInformation("[KnowledgeIngestion] Ingestion pipeline is already running. Skipping duplicate concurrent run.");
+            return 0;
         }
 
-        await _indexStore.UpsertChunksBatchAsync(allChunks, cancellationToken);
-        _logger.LogInformation("Successfully ingested {ChunkCount} deterministic chunks into the knowledge index.", allChunks.Count);
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            _logger.LogInformation("[KnowledgeIngestion] Starting knowledge ingestion pipeline...");
+            var sourceDocs = await _sourceStore.GetApprovedSourceDocumentsAsync(cancellationToken);
 
-        return allChunks.Count;
+            // Grounding Invariant: Only approved AND active documents may be ingested
+            var validDocs = sourceDocs.Where(d => d.Approved && d.Active).ToList();
+            _logger.LogInformation("[KnowledgeIngestion] Fetched {TotalCount} documents from source store. {ApprovedCount} passed Grounding Invariant filter.", sourceDocs.Count, validDocs.Count);
+
+            var allChunks = new List<KnowledgeDocumentDto>();
+
+            foreach (var doc in validDocs)
+            {
+                var docChunks = ChunkDocument(doc);
+                allChunks.AddRange(docChunks);
+            }
+
+            await _indexStore.UpsertChunksBatchAsync(allChunks, cancellationToken);
+            sw.Stop();
+            _logger.LogInformation("[KnowledgeIngestion] Successfully ingested {ChunkCount} deterministic chunks into knowledge index in {ElapsedMs}ms.", allChunks.Count, sw.ElapsedMilliseconds);
+
+            return allChunks.Count;
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            _logger.LogError(ex, "[KnowledgeIngestion] Error during knowledge document ingestion pipeline after {ElapsedMs}ms.", sw.ElapsedMilliseconds);
+            throw;
+        }
+        finally
+        {
+            IngestionLock.Release();
+        }
     }
 
     public static List<KnowledgeDocumentDto> ChunkDocument(KnowledgeDocumentDto doc)

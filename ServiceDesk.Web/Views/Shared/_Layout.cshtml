@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - IT Service Desk Copilot</title>
     <meta name="description" content="Enterprise IT Service Desk Copilot — AI-powered IT self-service with grounded knowledge, incident drafting, and real-time system status." />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -41,6 +43,7 @@
                     var incActive = controller == "Incident" ? "active" : "";
                     var chatActive = controller == "Chat" ? "active" : "";
                     var statusActive = controller == "Status" ? "active" : "";
+                    var kbActive = controller == "Knowledge" ? "active" : "";
                     var managerActive = controller == "Manager" ? "active" : "";
                     var adminActive = controller == "Admin" ? "active" : "";
                 }
@@ -60,7 +63,12 @@
                     <span>Service health</span>
                 </a>
 
-                @if (User.IsInRole("Manager") || User.IsInRole("Administrator"))
+                <a class="nav-btn @kbActive" id="nav-kb" title="Knowledge Base" asp-controller="Knowledge" asp-action="Index">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    <span>Knowledge base</span>
+                </a>
+
+                @if (User.IsInRole("Manager"))
                 {
                     <a class="nav-btn @managerActive" title="Manager Dashboard" asp-controller="Manager" asp-action="Index">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /><line x1="18" y1="14" x2="18" y2="21" /><line x1="14" y1="18" x2="21" y2="18" /></svg>

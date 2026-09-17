@@ -25,10 +25,10 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var prompts = await _dbContext.SystemPromptOverrides.ToListAsync(cancellationToken);
-        var tools = await _dbContext.ToolAllowLists.ToListAsync(cancellationToken);
-        var auditLogs = await _dbContext.AuditLogs.OrderByDescending(x => x.Timestamp).Take(100).ToListAsync(cancellationToken);
-        var configs = await _dbContext.AdminConfigs.ToListAsync(cancellationToken);
+        var prompts = await _dbContext.SystemPromptOverrides.AsNoTracking().ToListAsync(cancellationToken);
+        var tools = await _dbContext.ToolAllowLists.AsNoTracking().ToListAsync(cancellationToken);
+        var auditLogs = await _dbContext.AuditLogs.AsNoTracking().OrderByDescending(x => x.Timestamp).Take(100).ToListAsync(cancellationToken);
+        var configs = await _dbContext.AdminConfigs.AsNoTracking().ToListAsync(cancellationToken);
 
         ViewBag.Prompts = prompts;
         ViewBag.Tools = tools;

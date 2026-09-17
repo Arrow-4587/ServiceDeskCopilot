@@ -17,6 +17,7 @@ public class IncidentController : Controller
     private readonly IIncidentReviewerService _reviewerService;
     private readonly ApproveAndSubmitIncidentUseCase _approveAndSubmitUseCase;
     private readonly IUserContext _userContext;
+    private readonly IKnowledgeBaseService _knowledgeBaseService;
     private readonly IAuditLogger _auditLogger;
     private readonly ILogger<IncidentController> _logger;
 
@@ -25,8 +26,9 @@ public class IncidentController : Controller
         IIncidentReviewerService reviewerService,
         ApproveAndSubmitIncidentUseCase approveAndSubmitUseCase,
         IUserContext userContext,
+        IKnowledgeBaseService knowledgeBaseService,
         ILogger<IncidentController> logger)
-        : this(draftRepository, reviewerService, approveAndSubmitUseCase, userContext, null!, logger)
+        : this(draftRepository, reviewerService, approveAndSubmitUseCase, userContext, knowledgeBaseService, null!, logger)
     {
     }
 
@@ -36,6 +38,7 @@ public class IncidentController : Controller
         IIncidentReviewerService reviewerService,
         ApproveAndSubmitIncidentUseCase approveAndSubmitUseCase,
         IUserContext userContext,
+        IKnowledgeBaseService knowledgeBaseService,
         IAuditLogger auditLogger,
         ILogger<IncidentController> logger)
     {
@@ -43,6 +46,7 @@ public class IncidentController : Controller
         _reviewerService = reviewerService ?? throw new ArgumentNullException(nameof(reviewerService));
         _approveAndSubmitUseCase = approveAndSubmitUseCase ?? throw new ArgumentNullException(nameof(approveAndSubmitUseCase));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        _knowledgeBaseService = knowledgeBaseService ?? throw new ArgumentNullException(nameof(knowledgeBaseService));
         _auditLogger = auditLogger;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -59,6 +63,17 @@ public class IncidentController : Controller
         {
             drafts = await _draftRepository.GetByUserIdAsync(_userContext.UserId, cancellationToken);
         }
+
+        IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> approvedDocs = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
+        try
+        {
+            approvedDocs = await _knowledgeBaseService.GetApprovedDocumentsAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[IncidentController] Error fetching knowledge documents from Azure Blob Storage.");
+        }
+        ViewBag.ApprovedDocs = approvedDocs;
 
         return View(drafts);
     }

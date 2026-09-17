@@ -97,12 +97,14 @@ public class WebControllerIntegrationTests
         var reviewer = new IncidentReviewerService(new SecretRedactionService(), NullLogger<IncidentReviewerService>.Instance);
         var gateway = new MockIncidentGatewayAdapter(NullLogger<MockIncidentGatewayAdapter>.Instance);
         var useCase = new ApproveAndSubmitIncidentUseCase(_userContext, gateway);
+        var knowledgeService = new FakeKnowledgeBaseService();
 
         var controller = new IncidentController(
             _draftRepository,
             reviewer,
             useCase,
             _userContext,
+            knowledgeService,
             NullLogger<IncidentController>.Instance);
 
         var result = await controller.Index(CancellationToken.None);
@@ -123,12 +125,14 @@ public class WebControllerIntegrationTests
         var reviewer = new IncidentReviewerService(new SecretRedactionService(), NullLogger<IncidentReviewerService>.Instance);
         var gateway = new MockIncidentGatewayAdapter(NullLogger<MockIncidentGatewayAdapter>.Instance);
         var useCase = new ApproveAndSubmitIncidentUseCase(_userContext, gateway);
+        var knowledgeService = new FakeKnowledgeBaseService();
 
         var controller = new IncidentController(
             _draftRepository,
             reviewer,
             useCase,
             _userContext,
+            knowledgeService,
             NullLogger<IncidentController>.Instance);
 
         var httpContext = new DefaultHttpContext();
@@ -148,7 +152,8 @@ public class WebControllerIntegrationTests
     public async Task StatusController_Index_ReturnsViewResultWithServiceStatuses()
     {
         var statusReader = new FakeSystemStatusReader();
-        var controller = new StatusController(statusReader, NullLogger<StatusController>.Instance);
+        var knowledgeService = new FakeKnowledgeBaseService();
+        var controller = new StatusController(statusReader, knowledgeService, NullLogger<StatusController>.Instance);
 
         var result = await controller.Index(CancellationToken.None);
 
@@ -248,6 +253,19 @@ public class WebControllerIntegrationTests
                 SuggestedTitle: null,
                 SuggestedDescription: null
             ));
+        }
+    }
+
+    private class FakeKnowledgeBaseService : IKnowledgeBaseService
+    {
+        public Task<IReadOnlyList<KnowledgeDocumentDto>> GetApprovedDocumentsAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<KnowledgeDocumentDto>>(Array.Empty<KnowledgeDocumentDto>());
+        }
+
+        public Task<KnowledgeDocumentDetailDto?> GetDocumentDetailAsync(string id, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<KnowledgeDocumentDetailDto?>(null);
         }
     }
 

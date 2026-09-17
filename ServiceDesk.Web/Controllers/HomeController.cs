@@ -14,19 +14,27 @@ namespace ServiceDesk.Web.Controllers
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly IConversationRepository _conversationRepository;
+        private readonly IKnowledgeBaseService _knowledgeBaseService;
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<HomeController> _logger;
 
-        public HomeController(ApplicationDbContext dbContext, IConversationRepository conversationRepository, IWebHostEnvironment env, ILogger<HomeController> logger)
+        public HomeController(
+            ApplicationDbContext dbContext,
+            IConversationRepository conversationRepository,
+            IKnowledgeBaseService knowledgeBaseService,
+            IWebHostEnvironment env,
+            ILogger<HomeController> logger)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _conversationRepository = conversationRepository ?? throw new ArgumentNullException(nameof(conversationRepository));
+            _knowledgeBaseService = knowledgeBaseService ?? throw new ArgumentNullException(nameof(knowledgeBaseService));
             _env = env ?? throw new ArgumentNullException(nameof(env));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<IActionResult> Index()
         {
+            var sw = Stopwatch.StartNew();
             var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Employee";
             var username = User.Identity?.Name ?? "Employee";
             var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? "";
@@ -41,17 +49,18 @@ namespace ServiceDesk.Web.Controllers
             var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
             _ = Guid.TryParse(userIdString, out Guid userId);
 
-            // Fetch data depending on user role
+            // Fetch data depending on user role using AsNoTracking for read-only query performance
             if (User.IsInRole("Administrator") || userRole.Equals("Administrator", StringComparison.OrdinalIgnoreCase))
             {
                 model.RegisteredUsers = await _dbContext.Users
+                    .AsNoTracking()
                     .OrderBy(u => u.Role)
                     .ThenBy(u => u.Username)
                     .ToListAsync();
 
                 model.UserChatHistory = (await _conversationRepository.GetByUserIdAsync(userId)).ToList();
 
-                var allTickets = await _dbContext.IncidentDrafts.ToListAsync();
+                var allTickets = await _dbContext.IncidentDrafts.AsNoTracking().ToListAsync();
                 var userDict = model.RegisteredUsers.ToDictionary(u => u.Id, u => u.Username);
                 
                 model.EmployeeTicketStats = allTickets
@@ -62,19 +71,21 @@ namespace ServiceDesk.Web.Controllers
                     );
 
                 model.AuditLogs = await _dbContext.AuditLogs
+                    .AsNoTracking()
                     .OrderByDescending(a => a.Timestamp)
                     .Take(250)
                     .ToListAsync();
             }
             else if (userRole.Equals("Analyst", StringComparison.OrdinalIgnoreCase))
             {
-                model.RegisteredUsers = await _dbContext.Users.ToListAsync();
+                model.RegisteredUsers = await _dbContext.Users.AsNoTracking().ToListAsync();
                 var endUserIds = model.RegisteredUsers
                     .Where(u => u.Role == ServiceDesk.Domain.Enums.UserRole.Employee || u.Role == ServiceDesk.Domain.Enums.UserRole.Manager)
                     .Select(u => u.Id)
                     .ToList();
 
                 model.AllTickets = await _dbContext.IncidentDrafts
+                    .AsNoTracking()
                     .Where(t => endUserIds.Contains(t.UserId))
                     .ToListAsync();
                 
@@ -84,31 +95,22 @@ namespace ServiceDesk.Web.Controllers
             else // Employee or Manager
             {
                 model.UserChatHistory = (await _conversationRepository.GetByUserIdAsync(userId)).ToList();
-                model.UserTickets = await _dbContext.IncidentDrafts.Where(i => i.UserId == userId).ToListAsync();
+                model.UserTickets = await _dbContext.IncidentDrafts.AsNoTracking().Where(i => i.UserId == userId).ToListAsync();
             }
 
-            // Load Knowledge Base Referenced Files
-            var knowledgeDirPath = Path.Combine(_env.ContentRootPath, "..", "data", "knowledge");
-            if (!Directory.Exists(knowledgeDirPath))
+            // Fetch approved knowledge documents (cached via KnowledgeBaseService)
+            try
             {
-                knowledgeDirPath = Path.Combine(_env.ContentRootPath, "data", "knowledge");
+                model.KnowledgeDocuments = await _knowledgeBaseService.GetApprovedDocumentsAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[HomeController] Error fetching approved knowledge documents from Azure Blob Storage.");
+                model.KnowledgeDocuments = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
             }
 
-            if (Directory.Exists(knowledgeDirPath))
-            {
-                var files = Directory.GetFiles(knowledgeDirPath, "*.md");
-                foreach (var file in files)
-                {
-                    var fileInfo = new FileInfo(file);
-                    model.KnowledgeFiles.Add(new KnowledgeFileItem
-                    {
-                        FileName = fileInfo.Name,
-                        Title = FormatTitleFromFileName(fileInfo.Name),
-                        Category = GetCategoryFromFileName(fileInfo.Name),
-                        FileSizeBytes = fileInfo.Length
-                    });
-                }
-            }
+            sw.Stop();
+            _logger.LogInformation("[HomeController] Index rendered for role '{Role}' in {ElapsedMs}ms.", userRole, sw.ElapsedMilliseconds);
 
             return View(model);
         }

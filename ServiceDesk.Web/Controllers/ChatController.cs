@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Application.DTOs.Chat;
@@ -76,7 +77,10 @@ public class ChatController : Controller
         }
 
         var userIds = sessions.Select(s => s.UserId).Distinct().ToList();
-        var users = _dbContext.Users.Where(u => userIds.Contains(u.Id)).ToDictionary(u => u.Id, u => u.Role);
+        var users = await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Role, cancellationToken);
 
         var historyItems = sessions.Select(s => new {
             Session = s,

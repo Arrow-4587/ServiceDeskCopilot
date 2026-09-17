@@ -13,18 +13,18 @@ public class ManagerController : Controller
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IConversationRepository _conversationRepository;
-    private readonly IWebHostEnvironment _env;
+    private readonly IKnowledgeBaseService _knowledgeBaseService;
     private readonly ILogger<ManagerController> _logger;
 
     public ManagerController(
         ApplicationDbContext dbContext,
         IConversationRepository conversationRepository,
-        IWebHostEnvironment env,
+        IKnowledgeBaseService knowledgeBaseService,
         ILogger<ManagerController> logger)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _conversationRepository = conversationRepository ?? throw new ArgumentNullException(nameof(conversationRepository));
-        _env = env ?? throw new ArgumentNullException(nameof(env));
+        _knowledgeBaseService = knowledgeBaseService ?? throw new ArgumentNullException(nameof(knowledgeBaseService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -39,6 +39,7 @@ public class ManagerController : Controller
 
         // ── Audit logs for AI Metrics (last 500 entries) ─────────────────────
         var recentLogs = await _dbContext.AuditLogs
+            .AsNoTracking()
             .OrderByDescending(a => a.Timestamp)
             .Take(500)
             .ToListAsync(cancellationToken);
@@ -86,67 +87,26 @@ public class ManagerController : Controller
             }
         };
 
-        // ── Knowledge Base files ──────────────────────────────────────────────
-        var knowledgeFiles = new List<ManagerKnowledgeFile>();
-        var knowledgeDirPath = Path.Combine(_env.ContentRootPath, "..", "data", "knowledge");
-        if (!Directory.Exists(knowledgeDirPath))
-            knowledgeDirPath = Path.Combine(_env.ContentRootPath, "data", "knowledge");
-
-        if (Directory.Exists(knowledgeDirPath))
+        // ── Knowledge Base files from configured Azure Knowledge Source ───────
+        IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> approvedDocs = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
+        try
         {
-            foreach (var file in Directory.GetFiles(knowledgeDirPath, "*.md"))
-            {
-                var info = new FileInfo(file);
-                knowledgeFiles.Add(new ManagerKnowledgeFile
-                {
-                    FileName = info.Name,
-                    Title = FormatTitle(info.Name),
-                    Category = GetCategory(info.Name),
-                    SizeBytes = info.Length,
-                    LastModified = info.LastWriteTimeUtc
-                });
-            }
+            approvedDocs = await _knowledgeBaseService.GetApprovedDocumentsAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ManagerController] Failed to retrieve approved knowledge documents from Azure Blob Storage.");
         }
 
         ViewBag.AgentMetrics = agents;
         ViewBag.ChatHistory = chatHistory;
-        ViewBag.KnowledgeFiles = knowledgeFiles;
+        ViewBag.ApprovedDocs = approvedDocs;
         ViewBag.AuditLogs = recentLogs.Take(50).ToList();
         ViewBag.TotalRequests = agents.Sum(a => a.Requests);
         ViewBag.TotalTokens = agents.Sum(a => a.TotalTokens);
         ViewBag.AvgSuccess = agents.Any() ? agents.Average(a => a.SuccessRate).ToString("0.0") : "100.0";
 
         return View();
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    private static string FormatTitle(string fileName)
-    {
-        var name = Path.GetFileNameWithoutExtension(fileName);
-        return name switch
-        {
-            "email_outlook_setup" => "Outlook & Office 365 Setup Guide",
-            "hardware_request_policy" => "Hardware Request & Provisioning Policy",
-            "password_reset_policy" => "Self-Service Password Reset Policy",
-            "printer_troubleshooting" => "Printer Spooler & Badge Printing Guide",
-            "remote_work_security" => "Remote Work Security Guidelines",
-            "security_incident_reporting" => "Security Incident Reporting Protocol",
-            "software_install_policy" => "Software Installation & Licensing Policy",
-            "teams_mfa_setup" => "Microsoft Teams & MFA Setup Guide",
-            "vpn_policy" => "Cisco AnyConnect Corporate VPN Policy",
-            "wifi_access_guide" => "Corporate Wi-Fi Access & Guest Setup",
-            _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo
-                    .ToTitleCase(name.Replace("_", " "))
-        };
-    }
-
-    private static string GetCategory(string fileName)
-    {
-        var n = fileName.ToLower();
-        if (n.Contains("security") || n.Contains("mfa") || n.Contains("password")) return "Security & Access";
-        if (n.Contains("vpn") || n.Contains("wifi") || n.Contains("remote")) return "Network & Connectivity";
-        if (n.Contains("hardware") || n.Contains("printer")) return "Devices & Hardware";
-        return "Software & Apps";
     }
 }
 

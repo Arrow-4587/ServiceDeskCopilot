@@ -1,3 +1,4 @@
+using ServiceDesk.Application.DTOs.Knowledge;
 using ServiceDesk.Domain.Entities;
 
 namespace ServiceDesk.Web.Models;
@@ -9,6 +10,7 @@ public class HomeViewModel
     public string UserEmail { get; set; } = string.Empty;
     public List<User> RegisteredUsers { get; set; } = new();
     public List<KnowledgeFileItem> KnowledgeFiles { get; set; } = new();
+    public IReadOnlyList<KnowledgeDocumentDto> KnowledgeDocuments { get; set; } = Array.Empty<KnowledgeDocumentDto>();
     public List<ConversationSession> UserChatHistory { get; set; } = new();
     public List<IncidentDraft> UserTickets { get; set; } = new();
     public List<IncidentDraft> AllTickets { get; set; } = new();

@@ -69,20 +69,21 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole(UserRole.Administrator.ToString()));
 });
 
+// Add Memory Cache & Background Services
+builder.Services.AddMemoryCache();
+builder.Services.AddHostedService<KnowledgeIngestionBackgroundService>();
+
 // Add Health Checks
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Apply schema migrations and ingest approved documents from Azure Blob Storage into Azure AI Search.
+// Apply schema migrations and seed initial database data synchronously. Knowledge ingestion runs in the background.
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
     await DataSeeder.SeedAsync(dbContext);
-
-    var ingestionService = scope.ServiceProvider.GetRequiredService<IKnowledgeIngestionService>();
-    await ingestionService.IngestApprovedKnowledgeDocumentsAsync();
 }
 
 // Configure the HTTP request pipeline.

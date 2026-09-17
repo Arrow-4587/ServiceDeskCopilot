@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -13,6 +14,8 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
     private readonly ILogger<AzureBlobKnowledgeSourceStore> _logger;
     private readonly string _connectionString;
     private readonly string _containerName;
+    private readonly BlobServiceClient? _blobServiceClient;
+    private readonly BlobContainerClient? _containerClient;
 
     public AzureBlobKnowledgeSourceStore(
         IConfiguration configuration,
@@ -23,41 +26,51 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
 
         _connectionString = configuration["AzureBlobStorage:ConnectionString"] ?? string.Empty;
         _containerName = configuration["AzureBlobStorage:ContainerName"] ?? "knowledge";
+
+        if (!string.IsNullOrWhiteSpace(_connectionString) && !_connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
+        {
+            _blobServiceClient = new BlobServiceClient(_connectionString);
+            _containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+        }
     }
 
     public async Task<IReadOnlyList<KnowledgeDocumentDto>> GetApprovedSourceDocumentsAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_connectionString) || _connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(_connectionString) || _containerClient == null || _connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Azure Blob Storage connection is required. Local knowledge files are disabled.");
         }
 
+        var sw = Stopwatch.StartNew();
         try
         {
             _logger.LogInformation("[AzureBlobStorage] Connecting to Azure Blob container '{ContainerName}' to fetch knowledge documents...", _containerName);
-            var blobServiceClient = new BlobServiceClient(_connectionString);
-            var containerClient = blobServiceClient.GetBlobContainerClient(_containerName);
 
-            var exists = await containerClient.ExistsAsync(cancellationToken);
+            var exists = await _containerClient.ExistsAsync(cancellationToken);
             if (!exists)
             {
                 throw new InvalidOperationException($"Azure Blob Storage container '{_containerName}' does not exist.");
             }
 
-            var documents = new List<KnowledgeDocumentDto>();
+            var blobItems = new List<BlobItem>();
 
-            await foreach (BlobItem blobItem in containerClient.GetBlobsAsync(cancellationToken: cancellationToken))
+            await foreach (BlobItem blobItem in _containerClient.GetBlobsAsync(cancellationToken: cancellationToken))
             {
                 if (!blobItem.Name.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var blobClient = containerClient.GetBlobClient(blobItem.Name);
+                blobItems.Add(blobItem);
+            }
+
+            var downloadTasks = blobItems.Select(async blobItem =>
+            {
+                var blobClient = _containerClient.GetBlobClient(blobItem.Name);
                 var downloadResult = await blobClient.DownloadContentAsync(cancellationToken);
                 var content = downloadResult.Value.Content.ToString();
 
                 var (docName, version, section, page, approved, active, body) = ParseFrontmatter(blobItem.Name, content);
 
-                var doc = new KnowledgeDocumentDto(
+                return new KnowledgeDocumentDto(
                     Id: Path.GetFileNameWithoutExtension(blobItem.Name),
                     DocumentName: docName,
                     Version: version,
@@ -69,33 +82,33 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
                     BlobPath: blobClient.Uri.ToString(),
                     LastModified: blobItem.Properties.LastModified?.UtcDateTime ?? DateTime.UtcNow
                 );
+            });
 
-                documents.Add(doc);
-            }
+            var documents = (await Task.WhenAll(downloadTasks)).ToList();
 
-            _logger.LogInformation("[AzureBlobStorage] Successfully fetched {Count} knowledge documents from Azure Blob container '{ContainerName}'.", documents.Count, _containerName);
+            sw.Stop();
+            _logger.LogInformation("[AzureBlobStorage] Successfully fetched {Count} knowledge documents in parallel from container '{ContainerName}' in {ElapsedMs}ms.", documents.Count, _containerName, sw.ElapsedMilliseconds);
             return documents;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[AzureBlobStorage] Error fetching documents from Azure Blob Storage.");
+            sw.Stop();
+            _logger.LogError(ex, "[AzureBlobStorage] Error fetching documents from Azure Blob Storage after {ElapsedMs}ms.", sw.ElapsedMilliseconds);
             throw;
         }
     }
 
     public async Task<Stream?> GetDocumentStreamAsync(string blobPath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_connectionString) || _connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(_connectionString) || _containerClient == null || _connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Azure Blob Storage connection is required. Local knowledge files are disabled.");
         }
 
         try
         {
-            var blobServiceClient = new BlobServiceClient(_connectionString);
-            var containerClient = blobServiceClient.GetBlobContainerClient(_containerName);
             var blobName = Path.GetFileName(blobPath);
-            var blobClient = containerClient.GetBlobClient(blobName);
+            var blobClient = _containerClient.GetBlobClient(blobName);
 
             var exists = await blobClient.ExistsAsync(cancellationToken);
             if (!exists)

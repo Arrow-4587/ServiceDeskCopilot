@@ -23,6 +23,7 @@ public class ConversationRepository : IConversationRepository
     public async Task<IReadOnlyList<ConversationSession>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.ConversationSessions
+            .AsNoTracking()
             .Include(c => c.Messages)
             .Where(c => c.UserId == userId)
             .OrderByDescending(c => c.StartedAt)
@@ -32,6 +33,7 @@ public class ConversationRepository : IConversationRepository
     public async Task<IReadOnlyList<ConversationSession>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.ConversationSessions
+            .AsNoTracking()
             .Include(c => c.Messages)
             .OrderByDescending(c => c.StartedAt)
             .ToListAsync(cancellationToken);

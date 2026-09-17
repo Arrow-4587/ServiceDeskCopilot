@@ -321,11 +321,17 @@
 
                     const assistantHtml = `
                         <div class="d-flex justify-content-start mb-2">
-                            <div class="chat-bubble-assistant" style="max-width:90%;padding:12px 16px;font-size:0.855rem;">
-                                <div class="d-flex align-items-center gap-1 mb-2" style="font-size:0.72rem;color:#2563eb;font-weight:600;">
-                                    <i class="bi bi-cpu-fill"></i> Copilot
+                            <div class="chat-bubble-assistant position-relative" style="max-width:90%;padding:12px 16px;font-size:0.855rem;">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-1" style="font-size:0.72rem;color:var(--brand-blue, #2563eb);font-weight:600;">
+                                        <i class="bi bi-cpu-fill"></i> Copilot
+                                    </div>
+                                    <button type="button" class="btn-copy-response btn-copy-widget" title="Copy response" aria-label="Copy response">
+                                        <i class="bi bi-copy"></i>
+                                        <span class="copy-text">Copy</span>
+                                    </button>
                                 </div>
-                                <div style="line-height:1.6;color:#334155;">${escapeHtml(data.answer).replace(/\n/g, '<br/>')}</div>
+                                <div class="msg-text-content" style="line-height:1.6;color:var(--text-body, #334155);">${escapeHtml(data.answer).replace(/\n/g, '<br/>')}</div>
                                 ${citationsHtml}
                                 ${proposalHtml}
                             </div>

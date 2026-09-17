@@ -1,0 +1,77 @@
+<!-- Enterprise Knowledge Document Viewer Modal -->
+<div class="modal fade" id="kbDocumentModal" tabindex="-1" aria-labelledby="kbModalTitle" aria-hidden="true" role="dialog">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="background:var(--bg-surface);color:var(--text-heading);border:1px solid var(--border-soft) !important;">
+            
+            <!-- Modal Header -->
+            <div class="modal-header border-bottom py-3 px-4 flex-wrap gap-2 align-items-center justify-content-between" style="border-color:var(--border-soft) !important;background:var(--bg-surface-alt, rgba(0,0,0,0.02));">
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span id="kbModalSection" class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill" style="font-size:0.75rem;">
+                            General
+                        </span>
+                        <span id="kbModalVersion" class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:0.75rem;">
+                            v1.0
+                        </span>
+                        <span id="kbModalStatus" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size:0.75rem;">
+                            <i class="bi bi-check-circle-fill me-1"></i> Approved &amp; Active
+                        </span>
+                    </div>
+                    <h4 class="modal-title fw-800 mb-0" id="kbModalTitle" style="color:var(--text-heading);letter-spacing:-0.3px;">
+                        Document Details
+                    </h4>
+                    <div class="text-muted small mt-1">
+                        <i class="bi bi-clock me-1"></i>Last Updated: <span id="kbModalUpdated">—</span>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+                    <button type="button" id="kbModalBtnCopy" class="btn btn-sm btn-outline-secondary rounded-3 px-3 py-1.5 fw-semibold" title="Copy document content to clipboard">
+                        <i class="bi bi-clipboard me-1"></i> <span id="kbModalCopyText">Copy Content</span>
+                    </button>
+                    <button type="button" id="kbModalBtnPrint" class="btn btn-sm btn-outline-secondary rounded-3 px-3 py-1.5 fw-semibold" title="Print document">
+                        <i class="bi bi-printer me-1"></i> Print
+                    </button>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4">
+                
+                <!-- Loading State -->
+                <div id="kbModalSpinner" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;"></div>
+                    <p class="text-muted mt-3 mb-0 fw-semibold">Retrieving document content from Azure Blob Storage...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="kbModalError" class="alert alert-danger glass-card rounded-3 p-4" style="display:none;" role="alert">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-exclamation-octagon-fill fs-2 text-danger"></i>
+                        <div>
+                            <h5 class="fw-bold mb-1">Failed to Load Document</h5>
+                            <p id="kbModalErrorMessage" class="mb-0 small">The document could not be retrieved from Azure Blob Storage.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Content Container -->
+                <div id="kbModalContent" class="markdown-body px-2 py-1" style="display:none;color:var(--text-body);font-size:0.95rem;line-height:1.65;">
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer border-top py-2 px-4 justify-content-between" style="border-color:var(--border-soft) !important;">
+                <span class="text-muted small">
+                    <i class="bi bi-shield-check text-success me-1"></i> Verified Azure Knowledge Artifact
+                </span>
+                <button type="button" class="btn btn-sm btn-secondary rounded-3 px-4 fw-semibold" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
