@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using ServiceDesk.Application;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Domain.Enums;
@@ -10,7 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Support direct DLL launches from outside the web project directory.
 // Environment variables remain the highest-priority override.
-if (string.IsNullOrWhiteSpace(builder.Configuration["AzureOpenAI:Endpoint"]))
+if (string.IsNullOrWhiteSpace(builder.Configuration["AzureOpenAI:Endpoint"]) ||
+    string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("DefaultConnection")))
 {
     var deployedSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
     if (File.Exists(deployedSettingsPath))
@@ -72,21 +74,14 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Seed initial test data & ingest knowledge base documents into local search engine
+// Apply schema migrations and ingest approved documents from Azure Blob Storage into Azure AI Search.
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await DataSeeder.SeedAsync(dbContext);
+    await dbContext.Database.MigrateAsync();
 
-    try
-    {
-        var ingestionService = scope.ServiceProvider.GetRequiredService<IKnowledgeIngestionService>();
-        await ingestionService.IngestApprovedKnowledgeDocumentsAsync();
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogWarning(ex, "Background knowledge ingestion during startup encountered warning.");
-    }
+    var ingestionService = scope.ServiceProvider.GetRequiredService<IKnowledgeIngestionService>();
+    await ingestionService.IngestApprovedKnowledgeDocumentsAsync();
 }
 
 // Configure the HTTP request pipeline.

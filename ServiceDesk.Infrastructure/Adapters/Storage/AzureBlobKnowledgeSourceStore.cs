@@ -10,19 +10,15 @@ namespace ServiceDesk.Infrastructure.Adapters.Storage;
 
 public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
 {
-    private readonly LocalFileKnowledgeSourceStore _fallbackStore;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<AzureBlobKnowledgeSourceStore> _logger;
     private readonly string _connectionString;
     private readonly string _containerName;
 
     public AzureBlobKnowledgeSourceStore(
-        LocalFileKnowledgeSourceStore fallbackStore,
         IConfiguration configuration,
         ILogger<AzureBlobKnowledgeSourceStore> logger)
     {
-        _fallbackStore = fallbackStore ?? throw new ArgumentNullException(nameof(fallbackStore));
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        if (configuration == null) throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _connectionString = configuration["AzureBlobStorage:ConnectionString"] ?? string.Empty;
@@ -31,13 +27,9 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
 
     public async Task<IReadOnlyList<KnowledgeDocumentDto>> GetApprovedSourceDocumentsAsync(CancellationToken cancellationToken = default)
     {
-        bool hasAzureCredentials = !string.IsNullOrWhiteSpace(_connectionString) &&
-                                   !_connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase);
-
-        if (!hasAzureCredentials)
+        if (string.IsNullOrWhiteSpace(_connectionString) || _connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation("[AzureBlobStorage] Live connection string not provided. Loading approved knowledge files from local filesystem store.");
-            return await _fallbackStore.GetApprovedSourceDocumentsAsync(cancellationToken);
+            throw new InvalidOperationException("Azure Blob Storage connection is required. Local knowledge files are disabled.");
         }
 
         try
@@ -49,8 +41,7 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
             var exists = await containerClient.ExistsAsync(cancellationToken);
             if (!exists)
             {
-                _logger.LogWarning("[AzureBlobStorage] Container '{ContainerName}' does not exist on Azure Storage Account. Falling back to local store.", _containerName);
-                return await _fallbackStore.GetApprovedSourceDocumentsAsync(cancellationToken);
+                throw new InvalidOperationException($"Azure Blob Storage container '{_containerName}' does not exist.");
             }
 
             var documents = new List<KnowledgeDocumentDto>();
@@ -87,19 +78,16 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[AzureBlobStorage] Error fetching documents from Azure Blob Storage. Falling back to local file store.");
-            return await _fallbackStore.GetApprovedSourceDocumentsAsync(cancellationToken);
+            _logger.LogError(ex, "[AzureBlobStorage] Error fetching documents from Azure Blob Storage.");
+            throw;
         }
     }
 
     public async Task<Stream?> GetDocumentStreamAsync(string blobPath, CancellationToken cancellationToken = default)
     {
-        bool hasAzureCredentials = !string.IsNullOrWhiteSpace(_connectionString) &&
-                                   !_connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase);
-
-        if (!hasAzureCredentials)
+        if (string.IsNullOrWhiteSpace(_connectionString) || _connectionString.Contains("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
         {
-            return await _fallbackStore.GetDocumentStreamAsync(blobPath, cancellationToken);
+            throw new InvalidOperationException("Azure Blob Storage connection is required. Local knowledge files are disabled.");
         }
 
         try
@@ -112,7 +100,7 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
             var exists = await blobClient.ExistsAsync(cancellationToken);
             if (!exists)
             {
-                return await _fallbackStore.GetDocumentStreamAsync(blobPath, cancellationToken);
+                throw new FileNotFoundException($"Azure Blob '{blobPath}' does not exist.");
             }
 
             var download = await blobClient.DownloadStreamingAsync(cancellationToken: cancellationToken);
@@ -120,8 +108,8 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[AzureBlobStorage] Failed to stream blob '{BlobPath}'. Falling back to local store.", blobPath);
-            return await _fallbackStore.GetDocumentStreamAsync(blobPath, cancellationToken);
+            _logger.LogError(ex, "[AzureBlobStorage] Failed to stream blob '{BlobPath}'.", blobPath);
+            throw;
         }
     }
 

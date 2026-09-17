@@ -16,7 +16,6 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
     private readonly string _apiKey;
     private readonly string _indexName;
     private readonly AzureOpenAiEmbeddingService _embeddingService;
-    private readonly InMemoryKnowledgeSearchAdapter _fallbackStore;
     private readonly ILogger<AzureAiSearchKnowledgeStoreAdapter> _logger;
 
     private readonly SearchIndexClient? _indexClient;
@@ -28,11 +27,9 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
     public AzureAiSearchKnowledgeStoreAdapter(
         IConfiguration configuration,
         AzureOpenAiEmbeddingService embeddingService,
-        InMemoryKnowledgeSearchAdapter fallbackStore,
         ILogger<AzureAiSearchKnowledgeStoreAdapter> logger)
     {
         _embeddingService = embeddingService ?? throw new ArgumentNullException(nameof(embeddingService));
-        _fallbackStore = fallbackStore ?? throw new ArgumentNullException(nameof(fallbackStore));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _endpoint = configuration["AzureAiSearch:Endpoint"] ?? string.Empty;
@@ -53,7 +50,7 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
         }
         else
         {
-            _logger.LogWarning("[AzureAiSearch] Endpoint or ApiKey not configured. AzureAiSearch will delegate to in-memory store.");
+            throw new InvalidOperationException("Azure AI Search endpoint and API key are required. Local search is disabled.");
         }
     }
 
@@ -128,11 +125,8 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
         if (chunkList.Count == 0)
             return;
 
-        // Keep local fallback updated as well for resilience
-        await _fallbackStore.UpsertChunksBatchAsync(chunkList, cancellationToken);
-
         if (!_isConfigured || _searchClient == null)
-            return;
+            throw new InvalidOperationException("Azure AI Search is not configured. Local search is disabled.");
 
         try
         {
@@ -182,9 +176,7 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
     public async Task<int> GetIndexedCountAsync(CancellationToken cancellationToken = default)
     {
         if (!_isConfigured || _searchClient == null)
-        {
-            return await _fallbackStore.GetIndexedCountAsync(cancellationToken);
-        }
+            throw new InvalidOperationException("Azure AI Search is not configured. Local search is disabled.");
 
         try
         {
@@ -193,17 +185,15 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[AzureAiSearch] Failed to get document count, querying fallback store.");
-            return await _fallbackStore.GetIndexedCountAsync(cancellationToken);
+            _logger.LogError(ex, "[AzureAiSearch] Failed to get document count.");
+            throw;
         }
     }
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        await _fallbackStore.ClearAsync(cancellationToken);
-
         if (!_isConfigured || _indexClient == null)
-            return;
+            throw new InvalidOperationException("Azure AI Search is not configured. Local search is disabled.");
 
         try
         {
@@ -213,16 +203,15 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[AzureAiSearch] Error clearing index '{IndexName}'.", _indexName);
+            _logger.LogError(ex, "[AzureAiSearch] Error clearing index '{IndexName}'.", _indexName);
+            throw;
         }
     }
 
     public async Task<IReadOnlyList<SearchResultDto>> SearchKnowledgeAsync(SearchQueryDto query, CancellationToken cancellationToken = default)
     {
         if (!_isConfigured || _searchClient == null)
-        {
-            return await _fallbackStore.SearchKnowledgeAsync(query, cancellationToken);
-        }
+            throw new InvalidOperationException("Azure AI Search is not configured. Local search is disabled.");
 
         try
         {
@@ -280,18 +269,12 @@ public class AzureAiSearchKnowledgeStoreAdapter : IKnowledgeIndexStore, IKnowled
 
             _logger.LogInformation("[AzureAiSearch] Hybrid search returned {Count} matching chunks.", results.Count);
 
-            if (results.Count == 0)
-            {
-                _logger.LogInformation("[AzureAiSearch] No hybrid results returned, checking fallback store.");
-                return await _fallbackStore.SearchKnowledgeAsync(query, cancellationToken);
-            }
-
             return results;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[AzureAiSearch] Exception during hybrid search. Delegating to fallback store.");
-            return await _fallbackStore.SearchKnowledgeAsync(query, cancellationToken);
+            _logger.LogError(ex, "[AzureAiSearch] Exception during hybrid search.");
+            throw;
         }
     }
 

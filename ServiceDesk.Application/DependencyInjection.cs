@@ -14,8 +14,6 @@ public static class DependencyInjection
     {
         // Application Services
         services.AddTransient<IRagGroundingService, RagGroundingService>();
-        services.AddTransient<IAgentToolDispatcher, AgentToolDispatcher>();
-        services.AddTransient<IMcpServerService, McpServerService>();
         services.AddTransient<IChatConversationService, ChatConversationService>();
         services.AddTransient<IIncidentReviewerService, IncidentReviewerService>();
         services.AddTransient<IPlannerService, PlannerService>();
@@ -25,9 +23,7 @@ public static class DependencyInjection
 
         // Application Use Cases
         services.AddTransient<SearchKnowledgeUseCase>();
-        services.AddTransient<GetSystemStatusUseCase>();
         services.AddTransient<CreateIncidentDraftUseCase>();
-        services.AddTransient<ApproveAndSubmitIncidentUseCase>();
 
         return services;
     }

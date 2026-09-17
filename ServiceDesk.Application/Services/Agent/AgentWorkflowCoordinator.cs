@@ -4,7 +4,6 @@ using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Application.DTOs.Chat;
 using ServiceDesk.Application.DTOs.Incident;
 using ServiceDesk.Application.DTOs.Knowledge;
-using ServiceDesk.Application.DTOs.Status;
 using ServiceDesk.Application.UseCases;
 using ServiceDesk.Domain.Enums;
 
@@ -16,7 +15,6 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
     private readonly ISupportSpecialistService _specialistService;
     private readonly IIncidentReviewerService _reviewerService;
     private readonly SearchKnowledgeUseCase _searchKnowledgeUseCase;
-    private readonly GetSystemStatusUseCase _getSystemStatusUseCase;
     private readonly CreateIncidentDraftUseCase _createIncidentDraftUseCase;
     private readonly IIncidentDraftRepository? _draftRepository;
     private readonly IUserContext _userContext;
@@ -28,7 +26,6 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
         ISupportSpecialistService specialistService,
         IIncidentReviewerService reviewerService,
         SearchKnowledgeUseCase searchKnowledgeUseCase,
-        GetSystemStatusUseCase getSystemStatusUseCase,
         CreateIncidentDraftUseCase createIncidentDraftUseCase,
         IUserContext userContext,
         IAiTelemetry telemetry,
@@ -39,7 +36,6 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
         _specialistService = specialistService ?? throw new ArgumentNullException(nameof(specialistService));
         _reviewerService = reviewerService ?? throw new ArgumentNullException(nameof(reviewerService));
         _searchKnowledgeUseCase = searchKnowledgeUseCase ?? throw new ArgumentNullException(nameof(searchKnowledgeUseCase));
-        _getSystemStatusUseCase = getSystemStatusUseCase ?? throw new ArgumentNullException(nameof(getSystemStatusUseCase));
         _createIncidentDraftUseCase = createIncidentDraftUseCase ?? throw new ArgumentNullException(nameof(createIncidentDraftUseCase));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
@@ -72,12 +68,8 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
             knowledgeChunks = await _searchKnowledgeUseCase.ExecuteAsync(new SearchQueryDto(plan.SearchQuery), cancellationToken);
         }
 
-        IReadOnlyList<ServiceStatusDto> statuses = Array.Empty<ServiceStatusDto>();
-        if (plan.RequiresStatusCheck)
-        {
-            _telemetry.TrackToolCall("SystemStatus", true, correlationId);
-            statuses = await _getSystemStatusUseCase.GetAllAsync(cancellationToken);
-        }
+        // Status data is intentionally omitted until an authenticated Azure monitoring integration is configured.
+        var statuses = Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
 
         // -------------------------------------------------------------
         // STEP 3: Support Specialist Agent (Troubleshoots with grounded evidence)
@@ -104,7 +96,7 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
                 Category: specialistResult.Category ?? plan.DraftCategory ?? "General IT",
                 Impact: specialistResult.Impact,
                 Urgency: specialistResult.Urgency,
-                SystemStatusEvidence: statuses.Count > 0 ? string.Join("; ", statuses.Select(s => $"{s.ServiceName}: {s.Status}")) : ""
+                SystemStatusEvidence: statuses.Length > 0 ? string.Join("; ", statuses.Select(s => $"{s.ServiceName}: {s.Status}")) : ""
             );
 
             var reviewResult = await _reviewerService.ReviewDraftDtoAsync(unreviewedDto, cancellationToken);

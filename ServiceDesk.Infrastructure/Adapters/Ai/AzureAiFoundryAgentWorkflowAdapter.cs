@@ -18,7 +18,6 @@ namespace ServiceDesk.Infrastructure.Adapters.Ai;
 public class AzureAiFoundryAgentWorkflowAdapter : IAgentWorkflow
 {
     private readonly AgentWorkflowCoordinator _localCoordinator;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<AzureAiFoundryAgentWorkflowAdapter> _logger;
     private readonly AzureOpenAIClient _client;
     private readonly ISecretRedactionService _secretRedactor;
@@ -29,8 +28,6 @@ public class AzureAiFoundryAgentWorkflowAdapter : IAgentWorkflow
     private readonly string _plannerAgentName;
     private readonly string _supportSpecialistAgentName;
     private readonly string _reviewerAgentName;
-    private readonly bool _useMock;
-    private readonly bool _hasCredentials;
 
     public AzureAiFoundryAgentWorkflowAdapter(
         AgentWorkflowCoordinator localCoordinator,
@@ -41,7 +38,7 @@ public class AzureAiFoundryAgentWorkflowAdapter : IAgentWorkflow
         AzureOpenAIClient client)
     {
         _localCoordinator = localCoordinator ?? throw new ArgumentNullException(nameof(localCoordinator));
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        if (configuration == null) throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _secretRedactor = secretRedactor ?? throw new ArgumentNullException(nameof(secretRedactor));
         _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
@@ -54,21 +51,12 @@ public class AzureAiFoundryAgentWorkflowAdapter : IAgentWorkflow
         _supportSpecialistAgentName = configuration["AzureAiFoundry:SupportSpecialistAgentName"] ?? "it-support-specialist-agent";
         _reviewerAgentName = configuration["AzureAiFoundry:ReviewerAgentName"] ?? "it-reviewer-agent";
 
-        var useMockConfig = configuration["FeatureFlags:UseMockAiProvider"];
-        _useMock = bool.TryParse(useMockConfig, out var parsed) && parsed;
+        if (string.IsNullOrWhiteSpace(_projectEndpoint) || string.IsNullOrWhiteSpace(_apiKey))
+            throw new InvalidOperationException("Azure AI Foundry ProjectEndpoint and ApiKey are required. Local agent fallback is disabled.");
 
-        _hasCredentials = !string.IsNullOrWhiteSpace(_projectEndpoint) && !string.IsNullOrWhiteSpace(_apiKey);
-
-        if (_hasCredentials)
-        {
-            _logger.LogInformation(
-                "[AzureAiFoundry] Initialized cloud workflow for project '{Endpoint}' (Planner={Planner}, Specialist={Specialist}, Reviewer={Reviewer})",
-                _projectEndpoint, _plannerAgentName, _supportSpecialistAgentName, _reviewerAgentName);
-        }
-        else
-        {
-            _logger.LogWarning("[AzureAiFoundry] ProjectEndpoint or ApiKey missing. Will delegate to local coordinator.");
-        }
+        _logger.LogInformation(
+            "[AzureAiFoundry] Initialized cloud workflow for project '{Endpoint}' (Planner={Planner}, Specialist={Specialist}, Reviewer={Reviewer})",
+            _projectEndpoint, _plannerAgentName, _supportSpecialistAgentName, _reviewerAgentName);
     }
 
     public async Task<ChatResponseDto> ExecuteWorkflowAsync(ChatRequestDto request, CancellationToken cancellationToken = default)
@@ -92,7 +80,7 @@ public class AzureAiFoundryAgentWorkflowAdapter : IAgentWorkflow
         catch (Exception ex)
         {
             _logger.LogError(ex, "[AzureAiFoundry] Exception during multi-agent workflow execution.");
-            return await _localCoordinator.ExecuteWorkflowAsync(request, cancellationToken);
+            throw;
         }
     }
 
