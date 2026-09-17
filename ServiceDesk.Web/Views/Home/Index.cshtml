@@ -1,0 +1,532 @@
+@model ServiceDesk.Web.Models.HomeViewModel
+@{
+    ViewData["Title"] = "IT Service Desk Hub";
+    var username = Model.Username;
+    var userRole = Model.UserRole;
+    var isAdmin = userRole.Equals("Administrator", StringComparison.OrdinalIgnoreCase);
+    var isManager = userRole.Equals("Manager", StringComparison.OrdinalIgnoreCase);
+    var isAnalyst = userRole.Equals("Analyst", StringComparison.OrdinalIgnoreCase);
+}
+
+<div class="dashboard-page">
+@if (!isAdmin)
+
+{
+    <!-- ─── STANDARD USER VIEW (Streamlined Control Center) ─── -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom" style="border-color:var(--border-soft) !important;">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <div class="css-orb" style="width:28px;height:28px;"></div>
+                <h2 class="fw-800 mb-0" style="color:var(--text-heading);font-weight:800;letter-spacing:-0.5px;">
+                    Welcome back, @username
+                </h2>
+                <span class="badge rounded-pill ms-2" style="background:rgba(124,58,237,0.15);color:var(--accent-violet);border:1px solid rgba(124,58,237,0.3);font-size:0.75rem;">
+                    @userRole
+                </span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-3 mt-md-0">
+            <a asp-controller="Incident" asp-action="Index" class="btn btn-sm btn-outline-primary rounded-3 px-3 py-2 fw-semibold">
+                <i class="bi bi-ticket-perforated me-1"></i> Incident Workflows
+            </a>
+            <button type="button" id="btnLaunchCopilot" class="btn btn-sm btn-gradient rounded-3 px-3 py-2 fw-semibold">
+                <div class="css-orb d-inline-flex me-1" style="width:16px;height:16px;"></div> Launch Copilot
+            </button>
+        </div>
+    </div>
+}
+
+@if (isAdmin)
+{
+    <!-- ─── ADMINISTRATOR VIEW (No Hero Card — Streamlined Admin Control Center) ─── -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-2 border-bottom" style="border-color:var(--border-soft) !important;">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <div class="css-orb" style="width:28px;height:28px;"></div>
+                <h2 class="fw-800 mb-0" style="color:var(--text-heading);font-weight:800;letter-spacing:-0.5px;">
+                    Enterprise Control Center &amp; Audit
+                </h2>
+                <span class="badge rounded-pill ms-2" style="background:rgba(124,58,237,0.15);color:var(--accent-violet);border:1px solid rgba(124,58,237,0.3);font-size:0.75rem;">
+                    Administrator
+                </span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-3 mt-md-0">
+            <a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-outline-primary rounded-3 px-3 py-2 fw-semibold">
+                <i class="bi bi-sliders2 me-1"></i> AI &amp; Tool Configurations
+            </a>
+            <button type="button" id="btnLaunchCopilotAdmin" class="btn btn-sm btn-gradient rounded-3 px-3 py-2 fw-semibold">
+                <div class="css-orb d-inline-flex me-1" style="width:16px;height:16px;"></div> Launch Copilot
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats & Employee Database Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-7">
+            <!-- Registered Users & Ticket Counts -->
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+                <div class="card-header bg-transparent py-3 px-4 d-flex align-items-center justify-content-between border-bottom" style="border-color:var(--border-soft) !important;">
+                    <h5 class="mb-0 fw-700" style="color:var(--text-heading);font-size:1.05rem;">
+                        <i class="bi bi-people-fill me-2" style="color:var(--brand-blue);"></i>Employee Database &amp; Tickets
+                    </h5>
+                    <span class="badge" style="background:var(--brand-blue-light);color:var(--brand-blue);border:1px solid var(--brand-blue);">@Model.RegisteredUsers.Count Users</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:0.875rem;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
+                        <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.78rem; text-transform:uppercase;">
+                            <tr>
+                                <th class="ps-4">Username</th>
+                                <th>Role</th>
+                                <th>Tickets Raised</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Model.RegisteredUsers)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-semibold" style="color:var(--text-heading);">@user.Username</td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary">@user.Role</span></td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info">
+                                            @(Model.EmployeeTicketStats.ContainsKey(user.Username) ? Model.EmployeeTicketStats[user.Username] : 0)
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <!-- Admin Chat History -->
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+                <div class="card-header bg-transparent py-3 px-4 border-bottom" style="border-color:var(--border-soft) !important;">
+                    <h5 class="mb-0 fw-700" style="color:var(--text-heading);font-size:1.05rem;">
+                        <i class="bi bi-clock-history me-2" style="color:var(--brand-indigo);"></i>My Chat History
+                    </h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0" style="font-size:0.875rem;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
+                        <tbody>
+                            @foreach (var sessionItem in Model.UserChatHistory.Take(5))
+                            {
+                                <tr>
+                                    <td class="ps-4 text-secondary">@sessionItem.StartedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                                    <td class="text-end pe-4">
+                                        <a href="@Url.Action("Index", "Chat", new { conversationId = sessionItem.Id })" class="btn btn-sm btn-outline-primary rounded-pill">View</a>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!Model.UserChatHistory.Any())
+                            {
+                                <tr><td class="ps-4 text-muted py-3">No recent chats found.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── ENTERPRISE AUDIT LOGS (All Roles, Searchable & Sortable) ─── -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+        <div class="card-header bg-transparent py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-bottom" style="border-color:var(--border-soft) !important;">
+            <div>
+                <h5 class="mb-0 fw-700" style="color:var(--text-heading);font-size:1.15rem;">
+                    <i class="bi bi-shield-lock-fill me-2" style="color:var(--accent-emerald);"></i>Enterprise Audit Trail
+                </h5>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span id="auditCountBadge" class="badge rounded-pill px-3 py-1.5" style="background:var(--brand-blue-light);color:var(--brand-blue);border:1px solid var(--brand-blue);font-weight:600;font-size:0.8rem;">
+                    @Model.AuditLogs.Count Events
+                </span>
+            </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="p-3 border-bottom" style="background:var(--bg-surface-alt);border-color:var(--border-soft) !important;">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text border-end-0" style="background:var(--bg-surface);border-color:var(--border-soft);color:var(--text-muted);">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="auditSearchInput" class="form-control border-start-0" placeholder="Search user, action, details, IP..."
+                               style="background:var(--bg-surface);border-color:var(--border-soft);color:var(--text-heading);" />
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <select id="auditRoleFilter" class="form-select form-select-sm" style="background:var(--bg-surface);border-color:var(--border-soft);color:var(--text-heading);">
+                        <option value="">All Roles</option>
+                        <option value="Administrator">Administrator</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Analyst">Analyst</option>
+                        <option value="Employee">Employee</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <select id="auditActionFilter" class="form-select form-select-sm" style="background:var(--bg-surface);border-color:var(--border-soft);color:var(--text-heading);">
+                        <option value="">All Actions</option>
+                        <option value="UserLogin">UserLogin</option>
+                        <option value="UserLogout">UserLogout</option>
+                        <option value="ChatQuery">ChatQuery</option>
+                        <option value="IncidentCreated">IncidentCreated</option>
+                        <option value="ApproveIncident">ApproveIncident</option>
+                        <option value="RejectIncident">RejectIncident</option>
+                        <option value="InspectIncident">InspectIncident</option>
+                        <option value="AddSystemPrompt">AddSystemPrompt</option>
+                        <option value="ToggleTool">ToggleTool</option>
+                        <option value="AddTool">AddTool</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 text-md-end">
+                    <button type="button" id="btnResetAuditFilters" class="btn btn-sm btn-outline-secondary w-100" style="border-radius:8px;">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Table -->
+        <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+            <table id="auditTable" class="table table-hover align-middle mb-0" style="font-size:0.875rem;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
+                <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.78rem; text-transform:uppercase; position: sticky; top: 0; z-index: 2;">
+                    <tr>
+                        <th class="ps-4" style="cursor:pointer;" onclick="sortAuditTable(0)">Timestamp <i class="bi bi-arrow-down-up ms-1" style="font-size:0.7rem;"></i></th>
+                        <th style="cursor:pointer;" onclick="sortAuditTable(1)">User <i class="bi bi-arrow-down-up ms-1" style="font-size:0.7rem;"></i></th>
+                        <th style="cursor:pointer;" onclick="sortAuditTable(2)">Role <i class="bi bi-arrow-down-up ms-1" style="font-size:0.7rem;"></i></th>
+                        <th style="cursor:pointer;" onclick="sortAuditTable(3)">Action <i class="bi bi-arrow-down-up ms-1" style="font-size:0.7rem;"></i></th>
+                        <th>Details</th>
+                        <th class="pe-4 text-end">IP Address</th>
+                    </tr>
+                </thead>
+                <tbody id="auditTableBody">
+                    @if (Model.AuditLogs != null && Model.AuditLogs.Any())
+                    {
+                        foreach (var log in Model.AuditLogs)
+                        {
+                            var roleBadgeClass = log.UserRole switch
+                            {
+                                "Administrator" => "bg-purple-subtle text-purple border border-purple",
+                                "Manager" => "bg-warning-subtle text-warning border border-warning",
+                                "Analyst" => "bg-info-subtle text-info border border-info",
+                                "Employee" => "bg-primary-subtle text-primary border border-primary",
+                                _ => "bg-secondary-subtle text-secondary"
+                            };
+
+                            var actionBadgeClass = log.Action switch
+                            {
+                                "UserLogin" => "text-success bg-success-subtle",
+                                "UserLogout" => "text-secondary bg-secondary-subtle",
+                                "ChatQuery" => "text-primary bg-primary-subtle",
+                                "ApproveIncident" => "text-success bg-success-subtle",
+                                "RejectIncident" => "text-danger bg-danger-subtle",
+                                "IncidentCreated" => "text-warning bg-warning-subtle",
+                                _ => "text-info bg-info-subtle"
+                            };
+
+                            <tr class="audit-row" data-role="@log.UserRole" data-action="@log.Action">
+                                <td class="ps-4 text-nowrap" style="color:var(--text-muted);font-size:0.8rem;">
+                                    <i class="bi bi-clock me-1 opacity-75"></i>@log.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                                </td>
+                                <td class="fw-semibold" style="color:var(--text-heading);">
+                                    <i class="bi bi-person me-1 opacity-50"></i>@log.UserId
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill @roleBadgeClass px-2 py-1" style="font-size:0.72rem;font-weight:600;">
+                                        @log.UserRole
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill @actionBadgeClass px-2 py-1" style="font-size:0.72rem;font-weight:600;">
+                                        @log.Action
+                                    </span>
+                                </td>
+                                <td style="max-width:380px;color:var(--text-body);font-size:0.83rem;">
+                                    @log.Details
+                                </td>
+                                <td class="pe-4 text-end font-monospace text-muted" style="font-size:0.78rem;">
+                                    @log.IpAddress
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr id="noAuditLogsRow">
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="bi bi-journal-x fs-4 d-block mb-2 opacity-50"></i>
+                                No audit logs found in the database.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-transparent py-2 px-4 border-top d-flex justify-content-end align-items-center" style="border-color:var(--border-soft) !important;">
+            <small id="auditVisibleCount" style="color:var(--text-muted);font-weight:500;"></small>
+        </div>
+    </div>
+}
+else if (isAnalyst)
+{
+    <!-- ANALYST VIEW -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+                <div class="card-header bg-transparent py-3 px-4 border-bottom" style="border-color:var(--border-soft) !important;">
+                    <h5 class="mb-0 fw-700" style="color:var(--text-heading);">User Raised Tickets</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:0.9rem;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
+                        <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.8rem; text-transform:uppercase;">
+                            <tr>
+                                <th class="ps-4">Title</th>
+                                <th>Employee</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ticket in Model.AllTickets)
+                            {
+                                var ticketUser = Model.RegisteredUsers.FirstOrDefault(u => u.Id == ticket.UserId)?.Username ?? "Unknown";
+                                <tr>
+                                    <td class="ps-4 fw-semibold" style="color:var(--text-heading);">@ticket.Title</td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary">@ticketUser</span></td>
+                                    <td><span class="badge bg-warning text-dark">@ticket.ComputedPriority</span></td>
+                                    <td><span class="badge bg-info-subtle text-info">@ticket.Status</span></td>
+                                    <td class="text-end pe-4">
+                                        <a href="@Url.Action("Details", "Incident", new { id = ticket.Id })" class="btn btn-sm btn-outline-primary rounded-pill">Review</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+                <div class="card-header bg-transparent py-3 px-4 border-bottom" style="border-color:var(--border-soft) !important;">
+                    <h5 class="mb-0 fw-700" style="color:var(--text-heading);">User Chat History</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:0.9rem;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
+                        <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.8rem; text-transform:uppercase;">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Messages</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sessionItem in Model.AllChatHistory.Take(10))
+                            {
+                                <tr>
+                                    <td class="ps-4 text-secondary">@sessionItem.StartedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                                    <td><span class="badge bg-secondary">@sessionItem.Messages.Count</span></td>
+                                    <td class="text-end pe-4">
+                                        <a href="@Url.Action("Index", "Chat", new { conversationId = sessionItem.Id })" class="btn btn-sm btn-outline-primary rounded-pill">View</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- MANAGER & EMPLOYEE VIEW -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+                <div class="card-header bg-transparent py-3 px-4 border-bottom" style="border-color:var(--border-soft) !important;">
+                    <h5 class="mb-0 fw-700" style="color:var(--text-heading);">My Recent Chats</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0" style="font-size:0.9rem;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
+                        <tbody>
+                            @foreach (var sessionItem in Model.UserChatHistory.Take(5))
+                            {
+                                <tr>
+                                    <td class="ps-4 text-secondary">@sessionItem.StartedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")</td>
+                                    <td class="text-end pe-4">
+                                        <a href="@Url.Action("Index", "Chat", new { conversationId = sessionItem.Id })" class="btn btn-sm btn-outline-primary rounded-pill">View</a>
+                                    </td>
+                                </tr>
+                            }
+                            @if (!Model.UserChatHistory.Any())
+                            {
+                                <tr><td class="ps-4 text-muted py-3">No recent chats found.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+                <div class="card-header bg-transparent py-3 px-4 border-bottom" style="border-color:var(--border-soft) !important;">
+                    <h5 class="mb-0 fw-700" style="color:var(--text-heading);">My Tickets</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0" style="font-size:0.9rem;--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
+                        <tbody>
+                            @foreach (var ticket in Model.UserTickets)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-semibold" style="color:var(--text-heading);">@ticket.Title</td>
+                                    <td><span class="badge bg-warning text-dark">@ticket.ComputedPriority</span></td>
+                                </tr>
+                            }
+                            @if (!Model.UserTickets.Any())
+                            {
+                                <tr><td class="ps-4 text-muted py-3">No tickets found.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+</div>
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        function triggerCopilotQuery(queryText) {
+            if (typeof window.submitCopilotMessage === 'function') {
+                window.submitCopilotMessage(queryText);
+            } else {
+                const widget = $('#copilotWidgetWindow');
+                const input = $('#widgetUserMessage');
+                widget.show();
+                if (queryText) {
+                    input.val(queryText);
+                    $('#copilotWidgetForm').submit();
+                } else {
+                    input.focus();
+                }
+            }
+        }
+
+        $('#btnLaunchCopilot, #btnLaunchCopilotAdmin, .open-copilot-btn').click(function() {
+            triggerCopilotQuery();
+        });
+
+        $(document).on('click', '.prompt-trigger', function(e) {
+            e.preventDefault();
+            const text = $(this).attr('data-query') || $(this).text().trim();
+            triggerCopilotQuery(text);
+        });
+
+        // ─── Interactive Audit Table Filtering & Sorting ───
+        const searchInput = $('#auditSearchInput');
+        const roleFilter = $('#auditRoleFilter');
+        const actionFilter = $('#auditActionFilter');
+        const rows = $('#auditTableBody tr.audit-row');
+        const countBadge = $('#auditCountBadge');
+        const visibleCountLabel = $('#auditVisibleCount');
+
+        function applyAuditFilters() {
+            if (!rows.length) return;
+            const q = (searchInput.val() || '').toLowerCase().trim();
+            const selectedRole = (roleFilter.val() || '').toLowerCase();
+            const selectedAction = (actionFilter.val() || '').toLowerCase();
+
+            let visible = 0;
+            rows.each(function() {
+                const row = $(this);
+                const rowRole = (row.attr('data-role') || '').toLowerCase();
+                const rowAction = (row.attr('data-action') || '').toLowerCase();
+                const rowText = row.text().toLowerCase();
+
+                const matchesQuery = !q || rowText.indexOf(q) !== -1;
+                const matchesRole = !selectedRole || rowRole === selectedRole;
+                const matchesAction = !selectedAction || rowAction === selectedAction;
+
+                if (matchesQuery && matchesRole && matchesAction) {
+                    row.show();
+                    visible++;
+                } else {
+                    row.hide();
+                }
+            });
+
+            if (visibleCountLabel.length) {
+                visibleCountLabel.text(`Showing ${visible} of ${rows.length} records`);
+            }
+            if (countBadge.length) {
+                countBadge.text(`${visible} Events`);
+            }
+        }
+
+        searchInput.on('input', applyAuditFilters);
+        roleFilter.on('change', applyAuditFilters);
+        actionFilter.on('change', applyAuditFilters);
+
+        $('#btnResetAuditFilters').click(function() {
+            searchInput.val('');
+            roleFilter.val('');
+            actionFilter.val('');
+            applyAuditFilters();
+        });
+
+        applyAuditFilters();
+    });
+
+    window.sortAuditTable = function(colIndex) {
+        const tbody = document.getElementById("auditTableBody");
+        if (!tbody) return;
+        let switching = true;
+        let dir = "asc";
+        let switchcount = 0;
+
+        while (switching) {
+            switching = false;
+            const tableRows = tbody.getElementsByClassName("audit-row");
+
+            for (let i = 0; i < (tableRows.length - 1); i++) {
+                let shouldSwitch = false;
+                const x = tableRows[i].getElementsByTagName("TD")[colIndex];
+                const y = tableRows[i + 1].getElementsByTagName("TD")[colIndex];
+
+                const xText = x ? x.innerText.toLowerCase().trim() : '';
+                const yText = y ? y.innerText.toLowerCase().trim() : '';
+
+                if (dir === "asc") {
+                    if (xText > yText) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir === "desc") {
+                    if (xText < yText) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                tableRows[i].parentNode.insertBefore(tableRows[i + 1], tableRows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount === 0 && dir === "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    };
+</script>
+}

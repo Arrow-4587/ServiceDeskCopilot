@@ -1,0 +1,379 @@
+@using ServiceDesk.Domain.Entities
+@{
+    ViewData["Title"] = "Manager Dashboard";
+    var agents = ViewBag.AgentMetrics as IEnumerable<ManagerAgentMetric> ?? Enumerable.Empty<ManagerAgentMetric>();
+    var chatHistory = ViewBag.ChatHistory as List<ConversationSession> ?? new();
+    var knowledgeFiles = ViewBag.KnowledgeFiles as List<ManagerKnowledgeFile> ?? new();
+    var auditLogs = ViewBag.AuditLogs as List<AuditLog> ?? new();
+    var totalRequests = (int)(ViewBag.TotalRequests ?? 0);
+    var totalTokens = (int)(ViewBag.TotalTokens ?? 0);
+    var avgSuccess = ViewBag.AvgSuccess?.ToString() ?? "100.0";
+    var username = User.Identity?.Name ?? "Manager";
+}
+
+<div class="dashboard-page w-100">
+
+    @* ─── Page Header ───────────────────────────────────────────── *@
+    <div class="page-header" style="margin-bottom:28px;">
+        <h1 style="font-size:20px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">
+            <i class="bi bi-speedometer2 me-2" style="color:var(--accent);"></i>Manager Dashboard
+        </h1>
+        <p style="font-size:13px;color:var(--text-secondary);">
+            Welcome back, <strong style="color:var(--text-primary);">@username</strong> &nbsp;·&nbsp; AI telemetry, knowledge base, and conversation oversight.
+        </p>
+    </div>
+
+    @* ─── Summary Stat Cards ───────────────────────────────────────────── *@
+    <div class="stat-cards" style="margin-bottom:24px;">
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:var(--accent);"></div>
+            <div class="stat-card-icon" style="background:var(--accent-muted);">
+                <i class="bi bi-activity" style="color:var(--accent);font-size:18px;"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-label">Total AI Requests</div>
+                <div class="stat-value">@totalRequests</div>
+                <span class="stat-link">Across all 3 agents</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:#7c3aed;"></div>
+            <div class="stat-card-icon" style="background:rgba(124,58,237,0.12);">
+                <i class="bi bi-cpu" style="color:#7c3aed;font-size:18px;"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-label">Total Tokens Used</div>
+                <div class="stat-value">@(totalTokens.ToString("N0"))</div>
+                <span class="stat-link">Azure OpenAI consumption</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:#059669;"></div>
+            <div class="stat-card-icon" style="background:rgba(5,150,105,0.12);">
+                <i class="bi bi-check2-circle" style="color:#059669;font-size:18px;"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-label">Avg. Success Rate</div>
+                <div class="stat-value">@avgSuccess%</div>
+                <span class="stat-link">Agent reliability score</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-accent" style="background:#f59e0b;"></div>
+            <div class="stat-card-icon" style="background:rgba(245,158,11,0.12);">
+                <i class="bi bi-chat-square-dots" style="color:#f59e0b;font-size:18px;"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-label">Your Conversations</div>
+                <div class="stat-value">@chatHistory.Count</div>
+                <a asp-controller="Chat" asp-action="Index" class="stat-link">Open Copilot →</a>
+            </div>
+        </div>
+    </div>
+
+    @* ─── Tabs ─────────────────────────────────────────────────────────── *@
+    <ul class="nav nav-tabs mb-4" id="managerTabs" role="tablist"
+        style="border-bottom:1px solid var(--border);">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-metrics"
+                    type="button" role="tab" id="tab-metrics-btn">
+                <i class="bi bi-graph-up me-2"></i>AI Metrics
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history"
+                    type="button" role="tab" id="tab-history-btn">
+                <i class="bi bi-clock-history me-2"></i>Chat History
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-kb"
+                    type="button" role="tab" id="tab-kb-btn">
+                <i class="bi bi-journal-bookmark me-2"></i>Knowledge Base
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="managerTabsContent">
+
+        @* ─── TAB 1: AI METRICS ─────────────────────────────────────────── *@
+        <div class="tab-pane fade show active" id="tab-metrics" role="tabpanel">
+
+            @* Agent Cards Grid *@
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+                @foreach (var agent in agents)
+                {
+                    <div class="card" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color 0.2s;" onmouseover="this.style.borderColor='@agent.Color'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="height:3px;background:@agent.Color;"></div>
+                        <div style="padding:20px 22px;">
+                            <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+                                <div style="width:42px;height:42px;border-radius:10px;background:@agent.ColorMuted;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                    <i class="bi @agent.Icon" style="font-size:18px;color:@agent.Color;"></i>
+                                </div>
+                                <div>
+                                    <div style="font-size:13px;font-weight:700;color:var(--text-primary);">@agent.Name</div>
+                                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">Azure OpenAI · GPT-4o</div>
+                                </div>
+                            </div>
+
+                            @* Metrics Grid *@
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                                <div style="background:var(--bg-page);border-radius:8px;padding:10px 12px;">
+                                    <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Requests</div>
+                                    <div style="font-size:22px;font-weight:700;color:var(--text-primary);">@agent.Requests</div>
+                                </div>
+                                <div style="background:var(--bg-page);border-radius:8px;padding:10px 12px;">
+                                    <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Tokens</div>
+                                    <div style="font-size:22px;font-weight:700;color:var(--text-primary);">@(agent.TotalTokens.ToString("N0"))</div>
+                                </div>
+                                <div style="background:var(--bg-page);border-radius:8px;padding:10px 12px;">
+                                    <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Avg Latency</div>
+                                    <div style="font-size:22px;font-weight:700;color:var(--text-primary);">@agent.AvgLatencyMs<span style="font-size:12px;font-weight:400;color:var(--text-secondary);">ms</span></div>
+                                </div>
+                                <div style="background:var(--bg-page);border-radius:8px;padding:10px 12px;">
+                                    <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Success Rate</div>
+                                    <div style="font-size:22px;font-weight:700;color:#059669;">@agent.SuccessRate.ToString("0.0")<span style="font-size:12px;font-weight:400;color:var(--text-secondary);">%</span></div>
+                                </div>
+                            </div>
+
+                            @* Success Rate Bar *@
+                            <div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                                    <span style="font-size:11px;color:var(--text-secondary);">Success Rate</span>
+                                    <span style="font-size:11px;font-weight:600;color:#059669;">@agent.SuccessRate.ToString("0.0")%</span>
+                                </div>
+                                <div style="height:5px;background:var(--bg-page);border-radius:999px;overflow:hidden;">
+                                    <div style="height:100%;width:@agent.SuccessRate.ToString("0.0")%;background:linear-gradient(90deg,@agent.Color,#059669);border-radius:999px;transition:width 0.6s ease;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @* Requests Timeline Table (from Audit) *@
+            <div class="card" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+                    <span class="card-title" style="font-size:13px;font-weight:600;color:var(--text-primary);">
+                        <i class="bi bi-list-check me-2" style="color:var(--accent);"></i>Recent AI Activity Log
+                    </span>
+                    <span class="card-badge" style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;background:var(--accent-muted);color:var(--accent);border:1px solid rgba(43,92,230,0.25);">
+                        @auditLogs.Count Events
+                    </span>
+                </div>
+                <div style="max-height:340px;overflow-y:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Timestamp</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">User</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Role</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Action</th>
+                                <th style="font-size:10.5px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;padding:10px 18px;text-align:left;background:rgba(255,255,255,0.02);position:sticky;top:0;">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (auditLogs.Any())
+                            {
+                                @foreach (var log in auditLogs)
+                                {
+                                    var actionColor = log.Action switch
+                                    {
+                                        "ChatQuery" => "#3b82f6",
+                                        "ApproveIncident" => "#059669",
+                                        "RejectIncident" => "#ef4444",
+                                        "IncidentCreated" => "#f59e0b",
+                                        "UserLogin" => "#7c3aed",
+                                        _ => "var(--text-secondary)"
+                                    };
+                                    <tr style="border-top:1px solid var(--border);" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background=''">
+                                        <td style="font-size:12px;color:var(--text-secondary);padding:10px 18px;white-space:nowrap;">@log.Timestamp.ToLocalTime().ToString("MM/dd HH:mm")</td>
+                                        <td style="font-size:13px;font-weight:500;color:var(--text-primary);padding:10px 18px;">@log.UserId</td>
+                                        <td style="padding:10px 18px;"><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--accent-muted);color:var(--accent);">@log.UserRole</span></td>
+                                        <td style="padding:10px 18px;"><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,0.08);color:@actionColor;">@log.Action</span></td>
+                                        <td style="font-size:12px;color:var(--text-secondary);padding:10px 18px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@log.Details">@log.Details</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);font-size:13px;"><i class="bi bi-info-circle me-2"></i>No activity logs found.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        @* ─── TAB 2: CHAT HISTORY ────────────────────────────────────────── *@
+        <div class="tab-pane fade" id="tab-history" role="tabpanel">
+            <div class="card" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+                    <span class="card-title" style="font-size:13px;font-weight:600;color:var(--text-primary);">
+                        <i class="bi bi-clock-history me-2" style="color:var(--accent);"></i>Your Conversation History
+                    </span>
+                    <a asp-controller="Chat" asp-action="Index" class="btn-ghost" style="font-size:12px;padding:5px 12px;border-radius:8px;background:var(--accent-muted);border:1px solid rgba(43,92,230,0.3);color:var(--accent);text-decoration:none;">
+                        <i class="bi bi-plus-lg me-1"></i>New Chat
+                    </a>
+                </div>
+
+                @if (chatHistory.Any())
+                {
+                    <div style="padding:8px;">
+                        @foreach (var session in chatHistory.OrderByDescending(s => s.Messages.LastOrDefault()?.Timestamp ?? DateTime.MinValue))
+                        {
+                            var firstMsg = session.Messages.FirstOrDefault()?.Content ?? "New conversation";
+                            var lastMsg = session.Messages.LastOrDefault();
+                            var preview = firstMsg.Length > 70 ? firstMsg[..70] + "…" : firstMsg;
+                            var msgCount = session.Messages.Count;
+                            var timeAgo = lastMsg != null ? FormatTimeAgo(lastMsg.Timestamp) : "—";
+                            <a href="@Url.Action("Index", "Chat", new { conversationId = session.Id })"
+                               style="display:flex;align-items:center;gap:14px;padding:14px 12px;border-radius:10px;text-decoration:none;transition:background 0.12s;border:1px solid transparent;margin-bottom:4px;"
+                               onmouseover="this.style.background='var(--bg-hover)';this.style.borderColor='var(--border)'" onmouseout="this.style.background='';this.style.borderColor='transparent'">
+                                <div style="width:42px;height:42px;border-radius:10px;background:var(--accent-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                    <i class="bi bi-chat-left-text" style="color:var(--accent);font-size:16px;"></i>
+                                </div>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:13px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@preview</div>
+                                    <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">
+                                        <i class="bi bi-chat-dots me-1"></i>@msgCount messages &nbsp;·&nbsp;
+                                        <i class="bi bi-clock me-1"></i>@timeAgo
+                                    </div>
+                                </div>
+                                <div style="flex-shrink:0;">
+                                    <span style="font-size:11px;padding:3px 10px;border-radius:999px;background:var(--bg-page);border:1px solid var(--border);color:var(--text-secondary);">
+                                        View <i class="bi bi-arrow-right ms-1"></i>
+                                    </span>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div style="padding:60px 24px;text-align:center;">
+                        <i class="bi bi-chat-left-dots" style="font-size:2.5rem;color:var(--text-secondary);opacity:0.4;display:block;margin-bottom:12px;"></i>
+                        <div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:6px;">No conversations yet</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Start chatting with the AI Copilot to see your history here.</div>
+                        <a asp-controller="Chat" asp-action="Index" class="btn-ghost" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;background:var(--accent);border:none;color:#fff;text-decoration:none;font-size:13px;font-weight:500;">
+                            <i class="bi bi-chat-dots"></i> Open Copilot
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* ─── TAB 3: KNOWLEDGE BASE ──────────────────────────────────────── *@
+        <div class="tab-pane fade" id="tab-kb" role="tabpanel">
+
+            @* Search + Info bar *@
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <div style="flex:1;position:relative;">
+                    <i class="bi bi-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:13px;pointer-events:none;"></i>
+                    <input type="text" id="kbSearch" placeholder="Search knowledge documents…"
+                           style="width:100%;padding:9px 12px 9px 36px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.15s;"
+                           onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">
+                    <i class="bi bi-files me-1"></i> @knowledgeFiles.Count documents · Grounding Copilot answers
+                </div>
+            </div>
+
+            @* Category groups *@
+            @{
+                var categories = knowledgeFiles.GroupBy(f => f.Category).OrderBy(g => g.Key);
+            }
+            @foreach (var group in categories)
+            {
+                <div class="kb-category" style="margin-bottom:20px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <span style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.6px;">@group.Key</span>
+                        <div style="flex:1;height:1px;background:var(--border);"></div>
+                        <span style="font-size:11px;color:var(--text-secondary);">@group.Count() files</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">
+                        @foreach (var kf in group)
+                        {
+                            var catColor = kf.Category switch
+                            {
+                                "Security & Access" => "#ef4444",
+                                "Network & Connectivity" => "#3b82f6",
+                                "Devices & Hardware" => "#f59e0b",
+                                _ => "#7c3aed"
+                            };
+                            var catIcon = kf.Category switch
+                            {
+                                "Security & Access" => "bi-shield-lock",
+                                "Network & Connectivity" => "bi-wifi",
+                                "Devices & Hardware" => "bi-pc-display",
+                                _ => "bi-code-square"
+                            };
+                            <div class="kb-card" data-title="@kf.Title.ToLower()" data-cat="@kf.Category.ToLower()"
+                                 style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:flex-start;gap:12px;transition:border-color 0.15s,box-shadow 0.15s;"
+                                 onmouseover="this.style.borderColor='@catColor';this.style.boxShadow='0 2px 12px rgba(0,0,0,0.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow=''">
+                                <div style="width:38px;height:38px;border-radius:9px;background:rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(0,0,0,0.06);">
+                                    <i class="bi @catIcon" style="color:@catColor;font-size:16px;"></i>
+                                </div>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:13px;font-weight:600;color:var(--text-primary);line-height:1.3;margin-bottom:4px;">@kf.Title</div>
+                                    <div style="font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <span><i class="bi bi-file-earmark-text me-1"></i>@kf.FileName</span>
+                                        <span>·</span>
+                                        <span><i class="bi bi-hdd me-1"></i>@kf.SizeFormatted</span>
+                                        <span>·</span>
+                                        <span><i class="bi bi-calendar3 me-1"></i>@kf.LastModified.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                                    </div>
+                                    <div style="margin-top:8px;">
+                                        <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(5,150,105,0.1);color:#059669;border:1px solid rgba(5,150,105,0.2);">
+                                            <i class="bi bi-check-circle-fill"></i> Grounded · Active
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+    </div>@* /tab-content *@
+</div>@* /dashboard-page *@
+
+@functions {
+    static string FormatTimeAgo(DateTime dt)
+    {
+        var diff = DateTime.UtcNow - dt.ToUniversalTime();
+        if (diff.TotalMinutes < 1) return "Just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        return dt.ToLocalTime().ToString("MMM dd");
+    }
+}
+
+@section Scripts {
+<script>
+$(document).ready(function () {
+    // KB search filter
+    $('#kbSearch').on('input', function () {
+        var q = $(this).val().toLowerCase();
+        if (!q) {
+            $('.kb-card').show();
+            $('.kb-category').show();
+            return;
+        }
+        $('.kb-category').each(function () {
+            var hasVisible = false;
+            $(this).find('.kb-card').each(function () {
+                var title = $(this).data('title') || '';
+                var cat = $(this).data('cat') || '';
+                var visible = title.includes(q) || cat.includes(q);
+                $(this).toggle(visible);
+                if (visible) hasVisible = true;
+            });
+            $(this).toggle(hasVisible);
+        });
+    });
+});
+</script>
+}

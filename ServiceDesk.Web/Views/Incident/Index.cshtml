@@ -1,0 +1,123 @@
+@model IReadOnlyList<ServiceDesk.Domain.Entities.IncidentDraft>
+@using ServiceDesk.Domain.Enums
+@{
+    ViewData["Title"] = "Incident Draft Workspace";
+}
+
+<div class="dashboard-page w-100">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h3 class="fw-bold mb-1" style="color:var(--text-heading);">
+                    <i class="bi bi-shield-lock-fill text-warning me-2"></i> Human-in-the-Loop Incident Workspace
+                </h3>
+            </div>
+        </div>
+
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show rounded-3 mb-4" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["WarningMessage"] != null)
+        {
+            <div class="alert alert-warning alert-dismissible fade show rounded-3 mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["WarningMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-4" role="alert">
+                <i class="bi bi-x-circle-fill me-2"></i> @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div class="glass-card p-4">
+            @if (Model == null || !Model.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox text-secondary fs-1 mb-3 d-block"></i>
+                    <h5 style="color:var(--text-heading);">No Incident Drafts Found</h5>
+                    <p class="text-muted small">
+                        Incident drafts are automatically created when Copilot chat identifies an unresolved IT outage or when you request ticket creation.
+                    </p>
+                    <a asp-controller="Chat" asp-action="Index" class="btn btn-gradient btn-sm mt-2">
+                        <i class="bi bi-chat-dots me-1"></i> Return to Copilot Chat
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);--bs-table-hover-bg:var(--bg-hover);">
+                        <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.8rem;text-transform:uppercase;">
+                            <tr>
+                                <th>Ticket Title</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Approval Gate</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var draft in Model)
+                            {
+                                string priorityClass = draft.ComputedPriority switch
+                                {
+                                    IncidentPriority.Critical => "badge-priority-critical",
+                                    IncidentPriority.High => "badge-priority-high",
+                                    IncidentPriority.Medium => "badge-priority-medium",
+                                    _ => "badge-priority-low"
+                                };
+
+                                string approvalBadge = draft.ApprovalStatus switch
+                                {
+                                    ApprovalStatus.Approved => "bg-success text-white",
+                                    ApprovalStatus.Rejected => "bg-danger text-white",
+                                    _ => "bg-warning text-dark"
+                                };
+
+                                <tr>
+                                    <td class="fw-semibold" style="color:var(--text-heading);">
+                                        @draft.Title
+                                    </td>
+                                    <td><span class="badge bg-secondary bg-opacity-50">@draft.Category</span></td>
+                                    <td>
+                                        <span class="badge @priorityClass px-2 py-1">
+                                            <i class="bi bi-lightning-fill me-1"></i> P@((int)draft.ComputedPriority) - @draft.ComputedPriority
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @approvalBadge px-2 py-1">
+                                            @draft.ApprovalStatus
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (draft.Status == IncidentStatus.Submitted)
+                                        {
+                                            <span class="text-info small"><i class="bi bi-check2-all me-1"></i> Submitted (@draft.SubmittedIncidentId)</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">@draft.Status</span>
+                                        }
+                                    </td>
+                                    <td class="text-muted small">@draft.CreatedAt.ToLocalTime().ToString("g")</td>
+                                    <td class="text-end">
+                                        <a asp-action="Details" asp-route-id="@draft.Id" class="btn btn-outline-info btn-sm rounded-pill">
+                                            <i class="bi bi-eye-fill me-1"></i> Review & Submit
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+</div>

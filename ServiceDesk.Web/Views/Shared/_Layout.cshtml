@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - IT Service Desk Copilot</title>
+    <meta name="description" content="Enterprise IT Service Desk Copilot — AI-powered IT self-service with grounded knowledge, incident drafting, and real-time system status." />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site-layout.css" asp-append-version="true" />
+    <script>
+        (function () {
+            var theme = localStorage.getItem('sdesk_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+<body class="@(ViewData["BodyClass"] ?? "")">
+
+    <div class="app-shell">
+        <!-- ENTERPRISE NAVIGATION -->
+        <aside class="sidebar">
+            <a class="sidebar-brand" asp-controller="Home" asp-action="Index" aria-label="Service Desk home">
+                <span class="sidebar-logo">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.2">
+                    <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18"/>
+                </svg>
+                </span>
+                <span class="brand-copy"><strong>Service Desk</strong><small>Operations hub</small></span>
+            </a>
+
+            <div class="sidebar-section-label">Workspace</div>
+            
+            <div class="nav-items">
+                @{
+                    var action = ViewContext.RouteData.Values["Action"]?.ToString();
+                    var controller = ViewContext.RouteData.Values["Controller"]?.ToString();
+                    
+                    var dashActive = controller == "Home" ? "active" : "";
+                    var incActive = controller == "Incident" ? "active" : "";
+                    var chatActive = controller == "Chat" ? "active" : "";
+                    var statusActive = controller == "Status" ? "active" : "";
+                    var managerActive = controller == "Manager" ? "active" : "";
+                    var adminActive = controller == "Admin" ? "active" : "";
+                }
+
+                <a class="nav-btn @dashActive" id="nav-dash" title="Dashboard" asp-controller="Home" asp-action="Index">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    <span>Overview</span>
+                </a>
+                
+                <a class="nav-btn @incActive" id="nav-inc" title="Incidents" asp-controller="Incident" asp-action="Index">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M15 5H9a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>
+                    <span>Incidents</span>
+                </a>
+                
+                <a class="nav-btn @statusActive" title="System Status" asp-controller="Status" asp-action="Index">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    <span>Service health</span>
+                </a>
+
+                @if (User.IsInRole("Manager") || User.IsInRole("Administrator"))
+                {
+                    <a class="nav-btn @managerActive" title="Manager Dashboard" asp-controller="Manager" asp-action="Index">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /><line x1="18" y1="14" x2="18" y2="21" /><line x1="14" y1="18" x2="21" y2="18" /></svg>
+                        <span>Manager view</span>
+                    </a>
+                }
+
+                @if (User.IsInRole("Administrator"))
+                {
+                    <a class="nav-btn @adminActive" title="Admin" asp-controller="Admin" asp-action="Index">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                        <span>Administration</span>
+                    </a>
+                }
+            </div>
+
+            <div class="sidebar-bottom">
+                <!-- Theme Toggle Button -->
+                <button type="button" class="nav-btn" id="themeToggleBtn" title="Toggle Theme" aria-label="Toggle Theme">
+                    <i id="themeIcon" class="bi bi-moon-stars-fill" style="font-size:1.1rem; color:var(--text-faint);"></i>
+                </button>
+
+                @if (User?.Identity?.IsAuthenticated == true)
+                {
+                    var initial = User.Identity.Name.Substring(0, 1).ToUpper();
+                    <div class="user-avatar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="@User.Identity.Name" style="cursor:pointer;">
+                        @initial
+                    </div>
+                    <ul class="dropdown-menu shadow-sm border-0" style="background:var(--bg-surface); border:1px solid var(--border)!important;">
+                        <li><span class="dropdown-item-text fw-bold" style="color:var(--text-primary);">@User.Identity.Name</span></li>
+                        <li><hr class="dropdown-divider" style="border-color:var(--border);"></li>
+                        <li>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline w-100">
+                                <button type="submit" class="dropdown-item text-danger d-flex align-items-center gap-2">
+                                    <i class="bi bi-box-arrow-right"></i> Logout
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="user-avatar" title="Sign In" style="text-decoration:none;">
+                        <i class="bi bi-person"></i>
+                    </a>
+                }
+            </div>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <div class="main-area">
+            <header class="app-topbar">
+                <div class="topbar-context">
+                    <span class="eyebrow">IT OPERATIONS</span>
+                    <span class="topbar-divider"></span>
+                    <span>@ViewData["Title"]</span>
+                </div>
+                <div class="topbar-actions">
+                    <span class="system-pill"><span class="online-dot"></span> All systems operational</span>
+                    <a class="topbar-icon" asp-controller="Chat" asp-action="Index" title="Open Copilot"><i class="bi bi-stars"></i></a>
+                    <button type="button" class="topbar-icon theme-toggle" id="themeToggleTop" title="Toggle theme" aria-label="Toggle theme"><i class="bi bi-moon-stars-fill"></i></button>
+                </div>
+            </header>
+            @RenderBody()
+        </div>
+
+    </div>
+
+    <!-- Include Global Floating Copilot Chat Widget -->
+    <partial name="_ChatWidget" />
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+
+</body>
+</html>

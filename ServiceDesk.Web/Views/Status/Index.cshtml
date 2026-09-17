@@ -1,0 +1,69 @@
+@model IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>
+@{
+    ViewData["Title"] = "System Status Dashboard";
+}
+
+<div class="dashboard-page w-100">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h3 class="text-white font-weight-bold mb-1">
+                    <i class="bi bi-activity text-success me-2"></i> Real-Time IT Infrastructure Health
+                </h3>
+                <p class="text-muted small mb-0">
+                    Live operational metrics and service availability adapters feeding Copilot context.
+                </p>
+            </div>
+            <div>
+                <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 px-3 py-2">
+                    <i class="bi bi-broadcast me-1"></i> Live Status Feed Active
+                </span>
+            </div>
+        </div>
+
+        @if (Model == null || !Model.Any())
+        {
+            <div class="glass-card p-5 text-center">
+                <i class="bi bi-exclamation-triangle text-warning fs-1 mb-3 d-block"></i>
+                <h5 class="text-light">No System Status Adapters Connected</h5>
+                <p class="text-muted small">
+                    System status monitoring reader returned no service status metrics.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var svc in Model)
+                {
+                    bool isOperational = svc.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase);
+                    bool isDegraded = svc.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase);
+                    bool isOutage = svc.Status.Contains("Outage", StringComparison.OrdinalIgnoreCase);
+
+                    string borderClass = isOperational ? "border-success" : isDegraded ? "border-warning" : "border-danger";
+                    string textClass = isOperational ? "text-success" : isDegraded ? "text-warning" : "text-danger";
+                    string badgeBg = isOperational ? "bg-success" : isDegraded ? "bg-warning text-dark" : "bg-danger text-white";
+                    string iconClass = isOperational ? "bi-check-circle-fill" : isDegraded ? "bi-exclamation-triangle-fill" : "bi-x-circle-fill";
+
+                    <div class="col-md-6 col-lg-4">
+                        <div class="glass-card p-4 h-100 border-top border-3 @borderClass">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h5 class="text-white mb-0 font-weight-semibold">@svc.ServiceName</h5>
+                                <span class="badge @badgeBg px-2 py-1">
+                                    <i class="bi @iconClass me-1"></i> @svc.Status
+                                </span>
+                            </div>
+
+                            <p class="text-muted small mb-3" style="min-height: 40px;">
+                                @svc.Description
+                            </p>
+
+                            <div class="pt-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between text-muted style="font-size: 0.8rem;">
+                                <span><i class="bi bi-clock me-1"></i> Last Checked</span>
+                                <span>@svc.LastChecked.ToLocalTime().ToString("T")</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+</div>

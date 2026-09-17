@@ -1,0 +1,370 @@
+<!-- Floating Chat Launcher Button -->
+<div id="copilotLauncher" class="floating-copilot-launcher" title="Open Copilot IT Support">
+    <div class="css-orb" style="width:32px;height:32px;box-shadow:none;border:2px solid rgba(255,255,255,0.5);"></div>
+    <span class="launcher-badge" title="Copilot Online"></span>
+</div>
+
+<!-- Expandable Floating Chat Window -->
+<div id="copilotWidgetWindow" class="copilot-widget-window" style="display: none;">
+    <!-- Header -->
+    <div class="copilot-widget-header">
+        <div class="d-flex align-items-center gap-2">
+            <div class="css-orb" style="width:34px;height:34px;border:1.5px solid rgba(255,255,255,0.35);"></div>
+            <div>
+                <div class="fw-bold small mb-0" style="color:#ffffff;letter-spacing:-0.2px;">IT Service Desk Copilot</div>
+                <div class="d-flex align-items-center gap-1" style="font-size:0.7rem;color:rgba(255,255,255,0.75);">
+                    <span class="d-inline-block rounded-circle" style="width:6px;height:6px;background:#34d399;box-shadow:0 0 0 2px rgba(52,211,153,0.3);"></span>
+                    Online &bull; Grounded RAG
+                </div>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-1">
+            <button id="btnWidgetGenerateTicket" class="btn btn-sm border-0 p-1 me-1" title="Generate Manual Ticket"
+                    style="color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.12);border-radius:7px;transition:background 0.2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                <i class="bi bi-ticket-detailed fs-6"></i>
+            </button>
+            <button id="btnWidgetNewChat" class="btn btn-sm border-0 p-1" title="New Conversation"
+                    style="color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.12);border-radius:7px;transition:background 0.2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                <i class="bi bi-arrow-clockwise fs-6"></i>
+            </button>
+            <button id="btnWidgetClose" class="btn btn-sm border-0 p-1" title="Minimize Chat"
+                    style="color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.12);border-radius:7px;transition:background 0.2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+                <i class="bi bi-dash-lg fs-5"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="copilotWidgetBody" class="copilot-widget-body">
+        <div id="widgetEmptyState" class="text-center py-4">
+            <div class="css-orb css-orb-large d-inline-flex mb-3" style="width:52px;height:52px;"></div>
+            <h6 class="mb-1 fw-700" style="color:var(--text-heading);font-weight:700;">Hi! How can I help you?</h6>
+            <p class="small px-3 mb-3" style="color:var(--text-muted);line-height:1.5;">
+                Ask about IT policies, VPN, passwords, hardware requests, or report an outage.
+            </p>
+            <div class="d-flex flex-column gap-2 px-2">
+                <button class="btn btn-sm rounded-pill text-start px-3 py-2 widget-sample-prompt"
+                        style="background:var(--bg-surface);border:1px solid var(--border-soft);color:var(--text-body);font-size:0.8rem;font-weight:500;transition:all 0.15s;">
+                    <i class="bi bi-key me-1" style="color:var(--brand-blue);"></i> How do I reset my corporate password?
+                </button>
+                <button class="btn btn-sm rounded-pill text-start px-3 py-2 widget-sample-prompt"
+                        style="background:var(--bg-surface);border:1px solid var(--border-soft);color:var(--text-body);font-size:0.8rem;font-weight:500;transition:all 0.15s;">
+                    <i class="bi bi-laptop me-1" style="color:var(--brand-blue);"></i> How do I request a developer laptop?
+                </button>
+                <button class="btn btn-sm rounded-pill text-start px-3 py-2 widget-sample-prompt"
+                        style="background:var(--bg-surface);border:1px solid var(--border-soft);color:var(--text-body);font-size:0.8rem;font-weight:500;transition:all 0.15s;">
+                    <i class="bi bi-shield-lock me-1" style="color:var(--brand-blue);"></i> VPN connection keeps dropping
+                </button>
+                <button class="btn btn-sm rounded-pill text-start px-3 py-2 widget-sample-prompt"
+                        style="background:var(--bg-surface);border:1px solid var(--border-soft);color:var(--text-body);font-size:0.8rem;font-weight:500;transition:all 0.15s;">
+                    <i class="bi bi-printer me-1" style="color:var(--brand-blue);"></i> Printer is offline and jobs are stuck
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input Footer -->
+    <div class="copilot-widget-footer">
+        <form id="copilotWidgetForm" class="m-0">
+            <input type="hidden" id="widgetConversationId" value="" />
+            <div class="input-group" style="border:1.5px solid var(--border-soft);border-radius:12px;overflow:hidden;background:var(--bg-surface);box-shadow:var(--shadow-xs);">
+                <textarea id="widgetUserMessage"
+                          class="form-control border-0"
+                          rows="1"
+                          placeholder="Type a message or issue..."
+                          style="resize:none;font-size:0.855rem;color:var(--text-body);background:transparent;padding:11px 14px;box-shadow:none;"
+                          required></textarea>
+                <button type="submit" id="btnWidgetSend"
+                        class="btn d-flex align-items-center justify-content-center border-0"
+                        style="background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border-radius:0 10px 10px 0;padding:0 18px;transition:filter 0.2s;"
+                        onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+                    <i class="bi bi-send-fill" style="font-size:0.9rem;"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function() {
+        document.addEventListener('DOMContentLoaded', function() {
+            const launcher = document.getElementById('copilotLauncher');
+            const windowEl = document.getElementById('copilotWidgetWindow');
+            const btnClose = document.getElementById('btnWidgetClose');
+            const btnNewChat = document.getElementById('btnWidgetNewChat');
+            const btnGenerateTicket = document.getElementById('btnWidgetGenerateTicket');
+            const bodyEl = document.getElementById('copilotWidgetBody');
+            const formEl = document.getElementById('copilotWidgetForm');
+            const inputEl = document.getElementById('widgetUserMessage');
+            const btnSend = document.getElementById('btnWidgetSend');
+            const convIdInput = document.getElementById('widgetConversationId');
+
+            if (!launcher || !windowEl) return;
+
+            window.submitCopilotMessage = function(text) {
+                if (windowEl) windowEl.style.display = 'flex';
+                if (text && inputEl && formEl) {
+                    inputEl.value = text;
+                    if (typeof formEl.requestSubmit === 'function') {
+                        formEl.requestSubmit();
+                    } else {
+                        formEl.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    }
+                } else if (inputEl) {
+                    inputEl.focus();
+                }
+            };
+
+            launcher.addEventListener('click', function() {
+                if (windowEl.style.display === 'none' || windowEl.style.display === '') {
+                    windowEl.style.display = 'flex';
+                    inputEl.focus();
+                    scrollToBottom();
+                } else {
+                    windowEl.style.display = 'none';
+                }
+            });
+
+            btnClose.addEventListener('click', function() {
+                windowEl.style.display = 'none';
+            });
+
+            btnGenerateTicket.addEventListener('click', function() {
+                const title = prompt("Enter a brief title for your issue (minimum 5 characters):");
+                if (!title) return;
+                const desc = prompt("Enter the details of your issue (minimum 15 characters):");
+                if (!desc) return;
+
+                fetch('/Incident/CreateDraftManual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, description: desc })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.draftId) {
+                        window.location.href = '/Incident/Details/' + data.draftId;
+                    } else {
+                        alert('Failed to generate manual draft.');
+                    }
+                })
+                .catch(err => {
+                    alert('An error occurred while generating the draft.');
+                });
+            });
+
+            btnNewChat.addEventListener('click', function() {
+                convIdInput.value = '';
+                bodyEl.innerHTML = `
+                    <div id="widgetEmptyState" class="text-center py-4">
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width:56px;height:56px;background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:2px solid #bfdbfe;">
+                            <i class="bi bi-chat-dots-fill" style="font-size:1.5rem;color:#2563eb;"></i>
+                        </div>
+                        <h6 class="mb-1 fw-bold" style="color:#0f172a;">New Conversation Started</h6>
+                        <p class="small px-3 mb-3" style="color:#64748b;">
+                            Ask about IT policies, VPN, passwords, hardware requests, or report an outage.
+                        </p>
+                        <div class="d-flex flex-column gap-2 px-2">
+                            <button class="btn btn-sm rounded-pill text-start px-3 py-2 widget-sample-prompt"
+                                    style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.8rem;font-weight:500;">
+                                <i class="bi bi-key me-1" style="color:#2563eb;"></i> How do I reset my corporate password?
+                            </button>
+                            <button class="btn btn-sm rounded-pill text-start px-3 py-2 widget-sample-prompt"
+                                    style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.8rem;font-weight:500;">
+                                <i class="bi bi-laptop me-1" style="color:#2563eb;"></i> How do I request a developer laptop?
+                            </button>
+                            <button class="btn btn-sm rounded-pill text-start px-3 py-2 widget-sample-prompt"
+                                    style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:0.8rem;font-weight:500;">
+                                <i class="bi bi-shield-lock me-1" style="color:#2563eb;"></i> VPN connection keeps dropping
+                            </button>
+                        </div>
+                    </div>`;
+                bindSamplePrompts();
+            });
+
+            function bindSamplePrompts() {
+                document.querySelectorAll('.widget-sample-prompt').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        inputEl.value = this.innerText.trim();
+                        formEl.dispatchEvent(new Event('submit', { cancelable: true }));
+                    });
+                });
+            }
+            bindSamplePrompts();
+
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    formEl.dispatchEvent(new Event('submit', { cancelable: true }));
+                }
+            });
+
+            function scrollToBottom() {
+                bodyEl.scrollTop = bodyEl.scrollHeight;
+            }
+
+            function escapeHtml(str) {
+                if (!str) return '';
+                return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            }
+
+            formEl.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const text = inputEl.value.trim();
+                if (!text) return;
+
+                const emptyState = document.getElementById('widgetEmptyState');
+                if (emptyState) emptyState.remove();
+
+                const userHtml = `
+                    <div class="d-flex justify-content-end mb-2">
+                        <div class="chat-bubble-user" style="max-width:82%;padding:10px 14px;font-size:0.855rem;">
+                            <div>${escapeHtml(text)}</div>
+                            <div class="text-end mt-1" style="font-size:0.68rem;color:rgba(255,255,255,0.65);">Just now</div>
+                        </div>
+                    </div>`;
+                bodyEl.insertAdjacentHTML('beforeend', userHtml);
+                inputEl.value = '';
+                scrollToBottom();
+
+                const loadingId = 'widget-loading-' + Date.now();
+                const loadingHtml = `
+                    <div id="${loadingId}" class="d-flex justify-content-start mb-2">
+                        <div class="chat-bubble-assistant" style="max-width:90%;padding:10px 14px;font-size:0.855rem;">
+                            <div class="d-flex align-items-center gap-2" style="color:#2563eb;">
+                                <div class="spinner-border spinner-border-sm" role="status" style="border-color:#2563eb;border-right-color:transparent;"></div>
+                                <span style="font-size:0.8rem;font-weight:500;">Searching IT knowledge base...</span>
+                            </div>
+                        </div>
+                    </div>`;
+                bodyEl.insertAdjacentHTML('beforeend', loadingHtml);
+                scrollToBottom();
+                btnSend.disabled = true;
+
+                const convId = convIdInput.value ? convIdInput.value : null;
+
+                fetch('/Chat/SendMessage', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        conversationId: convId,
+                        userMessage: text,
+                        useAgentWorkflow: true
+                    })
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('Request failed with status ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    const loadingEl = document.getElementById(loadingId);
+                    if (loadingEl) loadingEl.remove();
+                    btnSend.disabled = false;
+
+                    if (data.conversationId) {
+                        convIdInput.value = data.conversationId;
+                    }
+
+                    let citationsHtml = '';
+                    if (data.citations && data.citations.length > 0) {
+                        citationsHtml = '<div class="mt-2 pt-2 border-top border-secondary border-opacity-25"><span class="text-muted small d-block mb-1" style="font-size: 0.72rem;"><i class="bi bi-journal-bookmark me-1"></i> Sources:</span>';
+                        data.citations.forEach(c => {
+                            citationsHtml += `<span class="citation-chip" style="font-size: 0.75rem; padding: 2px 6px;"><i class="bi bi-file-earmark-text me-1"></i> ${escapeHtml(c.documentName)} (${escapeHtml(c.section)})</span>`;
+                        });
+                        citationsHtml += '</div>';
+                    }
+
+                    let proposalHtml = '';
+                    if (data.suggestedIncidentDraft) {
+                        const targetUrl = data.suggestedDraftId 
+                            ? `/Incident/Details/${data.suggestedDraftId}` 
+                            : '/Incident';
+
+                        proposalHtml = `
+                            <div class="proposal-banner p-2 mt-2" style="font-size: 0.82rem;">
+                                <div class="d-flex align-items-center gap-1 text-warning fw-bold mb-1">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> Incident Draft Proposed
+                                </div>
+                                <div class="text-light small mb-2">
+                                    <strong>Title:</strong> ${escapeHtml(data.suggestedTitle || 'New IT Support Ticket')}
+                                </div>
+                                <button type="button" class="btn btn-sm btn-warning w-100 fw-bold py-1 btn-generate-draft" 
+                                        data-title="${escapeHtml(data.suggestedTitle || '')}" 
+                                        data-desc="${escapeHtml(data.suggestedDescription || '')}" 
+                                        style="font-size: 0.8rem;">
+                                    <i class="bi bi-magic me-1"></i> Generate Incident Draft
+                                </button>
+                            </div>`;
+                    }
+
+                    const assistantHtml = `
+                        <div class="d-flex justify-content-start mb-2">
+                            <div class="chat-bubble-assistant" style="max-width:90%;padding:12px 16px;font-size:0.855rem;">
+                                <div class="d-flex align-items-center gap-1 mb-2" style="font-size:0.72rem;color:#2563eb;font-weight:600;">
+                                    <i class="bi bi-cpu-fill"></i> Copilot
+                                </div>
+                                <div style="line-height:1.6;color:#334155;">${escapeHtml(data.answer).replace(/\n/g, '<br/>')}</div>
+                                ${citationsHtml}
+                                ${proposalHtml}
+                            </div>
+                        </div>`;
+                    bodyEl.insertAdjacentHTML('beforeend', assistantHtml);
+                    scrollToBottom();
+                })
+                .catch(err => {
+                    const loadingEl = document.getElementById(loadingId);
+                    if (loadingEl) loadingEl.remove();
+                    btnSend.disabled = false;
+
+                    const errorHtml = `
+                        <div class="d-flex justify-content-start mb-2">
+                            <div class="chat-bubble-assistant" style="max-width:90%;padding:10px 14px;font-size:0.82rem;
+                                 background:#fef2f2;border:1px solid #fecaca;color:#dc2626;">
+                                <i class="bi bi-exclamation-octagon-fill me-1"></i> An error occurred processing your request. Please try again.
+                            </div>
+                        </div>`;
+                    bodyEl.insertAdjacentHTML('beforeend', errorHtml);
+                    scrollToBottom();
+                });
+            });
+            
+            // Handle dynamically added generate draft buttons
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-generate-draft');
+                if (!btn) return;
+                
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Generating...';
+                const title = btn.getAttribute('data-title');
+                const desc = btn.getAttribute('data-desc');
+
+                fetch('/Incident/CreateDraftManual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: title, description: desc })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.draftId) {
+                        window.location.href = '/Incident/Details/' + data.draftId;
+                    } else {
+                        alert('Failed to generate draft.');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-magic me-1"></i> Generate Incident Draft';
+                    }
+                })
+                .catch(err => {
+                    alert('An error occurred while generating the draft.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-magic me-1"></i> Generate Incident Draft';
+                });
+            });
+        });
+    })();
+</script>

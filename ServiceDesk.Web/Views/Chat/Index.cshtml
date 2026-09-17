@@ -1,0 +1,329 @@
+@model ServiceDesk.Domain.Entities.ConversationSession
+@{
+    ViewData["Title"] = "Copilot Chat";
+    ViewData["FullScreen"] = true;
+    ViewData["BodyClass"] = "chat-fullscreen";
+
+    var activeId = ViewBag.ActiveConversationId != null && (Guid)ViewBag.ActiveConversationId != Guid.Empty
+        ? ((Guid)ViewBag.ActiveConversationId).ToString()
+        : "";
+
+    var sidebarHistory = ViewBag.SidebarHistory as List<ServiceDesk.Domain.Entities.ConversationSession> ?? new();
+    var username = User.Identity?.Name ?? "You";
+    var userInitial = username.Length > 0 ? username[0].ToString().ToUpper() : "U";
+}
+
+<!-- ─── Full-screen Chat Layout ─── -->
+<div style="display:flex; width:100%; height:100%; overflow:hidden;">
+
+    <!-- CHAT PAGE -->
+    <div class="chat-center">
+        <div class="chat-topbar">
+            <div class="chat-topbar-title">
+                <span class="online-dot"></span> Enterprise IT Copilot
+                <span style="color:var(--text-faint);font-weight:400;font-size:12px;">· Grounded RAG · ITSM Dispatch</span>
+            </div>
+            <!-- Optional Topbar Actions -->
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            @if (Model != null && Model.Messages.Any())
+            {
+                <div class="messages-area">
+                @foreach (var msg in Model.Messages)
+                {
+                    if (msg.SenderRole.Equals("User", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <div class="msg-row user">
+                            <div>
+                                <div class="msg-bubble user">@msg.Content</div>
+                                <div class="msg-time">@msg.Timestamp.ToLocalTime().ToString("h:mm tt")</div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="msg-row">
+                            <div>
+                                <div class="msg-bubble bot">
+                                    <div>@Html.Raw(msg.Content.Replace("\n", "<br/>"))</div>
+                                    @if (msg.Citations != null && msg.Citations.Any())
+                                    {
+                                        <div class="citation-row">
+                                            @foreach (var c in msg.Citations)
+                                            {
+                                                <span class="citation-chip-sm">
+                                                    📄 @c.DocumentName (@c.Section)
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <div class="msg-time">@msg.Timestamp.ToLocalTime().ToString("h:mm tt") · Copilot</div>
+                            </div>
+                        </div>
+                    }
+                }
+                </div>
+            }
+            else
+            {
+                <div class="chat-welcome" id="chatWelcome">
+                    <div class="ai-orb">
+                        <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+                        <div class="core"></div>
+                    </div>
+                    <div class="welcome-title">Good Morning, @username!</div>
+                    <div class="welcome-subtitle">How can I assist you today?</div>
+                    <div class="suggestion-grid">
+                        <button class="suggestion-chip chat-suggestion" data-query="VPN connection keeps dropping — how do I fix it?"><span class="chip-icon">📡</span>VPN keeps dropping</button>
+                        <button class="suggestion-chip chat-suggestion" data-query="How do I reset my expired password via SSPR?"><span class="chip-icon">🔑</span>Reset my password</button>
+                        <button class="suggestion-chip chat-suggestion" data-query="How do I request a developer laptop?"><span class="chip-icon">💻</span>Request a laptop</button>
+                        <button class="suggestion-chip chat-suggestion" data-query="Microsoft Teams or MFA isn't working — help!"><span class="chip-icon">🔒</span>MFA / Teams issues</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="chat-input-wrap">
+            <form id="chatForm" autocomplete="off">
+                <input type="hidden" id="conversationId" value="@activeId" />
+                <div class="chat-input-box">
+                    <textarea class="chat-input-textarea" rows="1" placeholder="Describe your IT issue or ask a question…" id="userMessage" required></textarea>
+                    <div class="chat-input-toolbar">
+                        <button type="button" class="tool-btn" title="Attach"><i class="bi bi-paperclip"></i></button>
+                        <a href="@Url.Action("Index", "Chat")" class="tool-btn" title="New session" style="text-decoration:none;"><i class="bi bi-arrow-clockwise"></i></a>
+                        <button type="button" class="tool-chip">✦ AI Mode</button>
+                        <div class="spacer"></div>
+                        <button type="submit" class="send-btn" id="btnSend" title="Send">
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div class="input-hint"><kbd>Enter</kbd> to send &nbsp;·&nbsp; <kbd>Shift+Enter</kbd> for new line</div>
+        </div>
+    </div>
+
+    <!-- HISTORY PANEL -->
+    <div class="history-panel">
+        <div class="history-header">
+            <span class="history-title">History Chat</span>
+            <a href="@Url.Action("Index", "Chat")" class="btn-new-chat" id="btnNewChat">+ New Chat</a>
+        </div>
+        <div class="history-list">
+            @if (sidebarHistory.Any())
+            {
+                <div class="history-group-label">Recent</div>
+                @foreach (var item in sidebarHistory)
+                {
+                    var isActive = item.Id.ToString() == activeId;
+                    var label = item.Messages.FirstOrDefault()?.Content ?? "New conversation";
+                    var truncated = label.Length > 36 ? label[..36] + "…" : label;
+                    <a class="history-item @(isActive ? "active-item" : "")" href="@Url.Action("Index", "Chat", new { conversationId = item.Id })" title="@label">
+                        <span class="history-item-icon">🕐</span>
+                        <span class="history-item-text">@truncated</span>
+                    </a>
+                }
+            }
+            else
+            {
+                <div class="text-center py-5" style="color:var(--text-muted);font-size:0.8rem;">
+                    <i class="bi bi-chat-left-dots" style="font-size:1.5rem;display:block;margin-bottom:8px;opacity:0.4;"></i>
+                    No conversations yet
+                </div>
+            }
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+$(document).ready(function () {
+    const chatMessages = $('#chatMessages');
+    const chatForm = $('#chatForm');
+    const userMessageInput = $('#userMessage');
+    const btnSend = $('#btnSend');
+    const conversationIdInput = $('#conversationId');
+    const userInitial = '@userInitial';
+
+    function scrollToBottom() {
+        chatMessages.scrollTop(chatMessages[0].scrollHeight);
+    }
+    scrollToBottom();
+
+    // Auto-resize textarea
+    userMessageInput.on('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+    });
+
+    // Suggestion prompts
+    $(document).on('click', '.chat-suggestion', function () {
+        userMessageInput.val($(this).data('query'));
+        userMessageInput.trigger('input');
+        chatForm.submit();
+    });
+
+    // Enter to send, Shift+Enter for newline
+    userMessageInput.on('keydown', function (e) {
+        if (e.which === 13 && !e.shiftKey) {
+            e.preventDefault();
+            chatForm.submit();
+        }
+    });
+
+    chatForm.submit(function (e) {
+        e.preventDefault();
+        const messageText = userMessageInput.val().trim();
+        if (!messageText) return;
+
+        $('#chatWelcome').remove();
+
+        // Append user message
+        const userHtml = `
+            <div class="msg-row user">
+                <div>
+                    <div class="msg-bubble user">${escapeHtml(messageText)}</div>
+                    <div class="msg-time">Just now</div>
+                </div>
+            </div>`;
+        chatMessages.find('.messages-area').append(userHtml);
+        if (chatMessages.find('.messages-area').length === 0) {
+            chatMessages.append('<div class="messages-area">' + userHtml + '</div>');
+        }
+
+        userMessageInput.val('');
+        userMessageInput.css('height', 'auto');
+        scrollToBottom();
+
+        // Typing indicator
+        const loadingId = 'loading-' + Date.now();
+        const loadingHtml = `
+            <div id="${loadingId}" class="msg-row">
+                <div>
+                    <div class="msg-bubble bot" style="padding:14px 18px;">
+                        <div class="typing-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        chatMessages.find('.messages-area').append(loadingHtml);
+        scrollToBottom();
+        btnSend.prop('disabled', true);
+
+        const convId = conversationIdInput.val() || null;
+
+        $.ajax({
+            url: '/Chat/SendMessage',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                conversationId: convId,
+                userMessage: messageText,
+                useAgentWorkflow: true
+            }),
+            success: function (data) {
+                $('#' + loadingId).remove();
+                btnSend.prop('disabled', false);
+
+                if (data.conversationId) {
+                    conversationIdInput.val(data.conversationId);
+                    // Update URL without page reload
+                    window.history.replaceState({}, '', '/Chat/Index?conversationId=' + data.conversationId);
+                }
+
+                let citationsHtml = '';
+                if (data.citations && data.citations.length > 0) {
+                    citationsHtml = `<div class="citation-row">`;
+                    data.citations.forEach(c => {
+                        citationsHtml += `<span class="citation-chip-sm">📄 ${escapeHtml(c.documentName)} (${escapeHtml(c.section)})</span>`;
+                    });
+                    citationsHtml += '</div>';
+                }
+
+                let proposalHtml = '';
+                if (data.suggestedIncidentDraft) {
+                    proposalHtml = `
+                        <div class="proposal-card">
+                            <div style="display:flex;align-items:center;gap:8px;font-weight:700;color:var(--accent-amber);margin-bottom:6px;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Incident Draft Proposed
+                            </div>
+                            <div style="font-size:0.85rem;color:var(--text-body);margin-bottom:8px;">
+                                <strong>Title:</strong> ${escapeHtml(data.suggestedTitle || 'New IT Support Ticket')}
+                            </div>
+                            <button type="button" class="btn btn-sm btn-warning fw-semibold btn-generate-draft" 
+                                    data-title="${escapeHtml(data.suggestedTitle || '')}" 
+                                    data-desc="${escapeHtml(data.suggestedDescription || '')}" 
+                                    style="border-radius:8px;">
+                                <i class="bi bi-magic me-1"></i>Generate Incident Draft
+                            </button>
+                        </div>`;
+                }
+
+                const assistantHtml = `
+                    <div class="msg-row">
+                        <div>
+                            <div class="msg-bubble bot">
+                                <div>${escapeHtml(data.answer).replace(/\n/g, '<br/>')}</div>
+                                ${citationsHtml}
+                                ${proposalHtml}
+                            </div>
+                            <div class="msg-time">Just now · Copilot</div>
+                        </div>
+                    </div>`;
+                chatMessages.find('.messages-area').append(assistantHtml);
+                scrollToBottom();
+            },
+            error: function () {
+                $('#' + loadingId).remove();
+                btnSend.prop('disabled', false);
+                const errorHtml = `
+                    <div class="msg-row">
+                        <div>
+                            <div class="msg-bubble bot" style="border-color:#fecaca;color:#dc2626;">
+                                <i class="bi bi-exclamation-octagon-fill me-1"></i>Something went wrong. Please try again.
+                            </div>
+                        </div>
+                    </div>`;
+                chatMessages.find('.messages-area').append(errorHtml);
+                scrollToBottom();
+            }
+        });
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+    
+    $(document).on('click', '.btn-generate-draft', function() {
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-1"></i>Generating...');
+        const title = btn.data('title');
+        const desc = btn.data('desc');
+
+        $.ajax({
+            url: '/Incident/CreateDraftManual',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ title: title, description: desc }),
+            success: function(res) {
+                if(res.draftId) {
+                    window.location.href = '/Incident/Details/' + res.draftId;
+                } else {
+                    alert('Failed to create draft');
+                    btn.prop('disabled', false).html('<i class="bi bi-magic me-1"></i>Generate Incident Draft');
+                }
+            },
+            error: function() {
+                alert('An error occurred while creating the draft.');
+                btn.prop('disabled', false).html('<i class="bi bi-magic me-1"></i>Generate Incident Draft');
+            }
+        });
+    });
+});
+</script>
+}

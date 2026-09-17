@@ -1,0 +1,14 @@
+using ServiceDesk.Application;
+using ServiceDesk.Infrastructure;
+using ServiceDesk.Worker;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
+
+builder.Services.AddHostedService<KnowledgeIngestionWorker>();
+builder.Services.AddHostedService<SystemStatusPollingWorker>();
+
+var host = builder.Build();
+host.Run();
