@@ -54,13 +54,76 @@ public class ChatController : Controller
         if (conversationId.HasValue && conversationId.Value != Guid.Empty)
         {
             session = await _conversationRepository.GetByIdAsync(conversationId.Value, cancellationToken);
+            if (session == null)
+            {
+                return NotFound();
+            }
+
+            if (_userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee && session.UserId != _userContext.UserId)
+            {
+                return Forbid();
+            }
         }
 
-        // Load sidebar history
-        var history = await _conversationRepository.GetByUserIdAsync(_userContext.UserId, cancellationToken);
-        ViewBag.SidebarHistory = history.OrderByDescending(s => s.StartedAt).ToList();
+        Guid? filterUserId = _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee ? _userContext.UserId : (Guid?)null;
+        var pagedHistory = await _conversationRepository.GetPagedSummariesAsync(filterUserId, 1, 10, null, null, cancellationToken);
+        var userHistory = await _conversationRepository.GetByUserIdAsync(_userContext.UserId, cancellationToken);
+
+        ViewBag.HistoryPaged = pagedHistory;
+        ViewBag.SidebarHistory = userHistory.OrderByDescending(s => s.StartedAt).ToList();
         ViewBag.ActiveConversationId = session?.Id ?? Guid.Empty;
         return View(session);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> HistoryApi(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? timeFilter = null,
+        CancellationToken cancellationToken = default)
+    {
+        Guid? filterUserId = _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee ? _userContext.UserId : (Guid?)null;
+        var paged = await _conversationRepository.GetPagedSummariesAsync(filterUserId, page, pageSize, search, timeFilter, cancellationToken);
+        return Json(paged);
+    }
+
+    [HttpGet]
+    [Route("Chat/Conversation/{id:guid}")]
+    public async Task<IActionResult> GetConversationApi(Guid id, CancellationToken cancellationToken)
+    {
+        var session = await _conversationRepository.GetByIdAsync(id, cancellationToken);
+        if (session == null)
+        {
+            return NotFound(new { error = "Conversation not found." });
+        }
+
+        if (_userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee && session.UserId != _userContext.UserId)
+        {
+            return Forbid();
+        }
+
+        var messageDtos = session.Messages
+            .OrderBy(m => m.Timestamp)
+            .Select(m => new ChatMessageDetailDto(
+                m.Id,
+                m.SenderRole,
+                m.Content,
+                m.Timestamp,
+                m.Citations?.Select(c => new ServiceDesk.Application.DTOs.Knowledge.CitationDto(c.DocumentName, c.Section, c.Page, c.Snippet, c.BlobPath)).ToList()
+            ))
+            .ToList();
+
+        var detail = new ConversationDetailDto(
+            session.Id,
+            session.StartedAt,
+            session.IsActive,
+            session.UserId,
+            _userContext.Username,
+            messageDtos
+        );
+
+        return Json(detail);
     }
 
     [HttpGet]

@@ -4,71 +4,68 @@
     var approvedDocs = ViewBag.ApprovedDocs as IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> ?? Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
 }
 
-<div class="dashboard-page w-100">
-        <div class="d-flex align-items-center justify-content-between mb-4">
-            <div>
-                <h3 class="text-white font-weight-bold mb-1">
-                    <i class="bi bi-activity text-success me-2"></i> Real-Time IT Infrastructure Health
-                </h3>
-                <p class="text-muted small mb-0">
-                    Live operational metrics and service availability adapters feeding Copilot context.
-                </p>
-            </div>
-            <div>
-                <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 px-3 py-2">
-                    <i class="bi bi-broadcast me-1"></i> Live Status Feed Active
-                </span>
-            </div>
+<div class="mb-4">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+        <div>
+            <h3 class="fw-bold mb-1">Service Health & System Status</h3>
+            <p class="text-muted mb-0 small">Live operational metrics, IT infrastructure health, and service availability feeds.</p>
         </div>
+        <div>
+            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill shadow-sm">
+                <i class="bi bi-broadcast me-1"></i> Live Monitoring Feed Active
+            </span>
+        </div>
+    </div>
+</div>
 
-        @if (Model == null || !Model.Any())
+@if (Model == null || !Model.Any())
+{
+    <div class="card border-0 shadow-sm p-5 text-center mb-4">
+        <i class="bi bi-exclamation-triangle text-warning fs-1 mb-3 d-block opacity-75"></i>
+        <h5 class="fw-bold">No Service Adapters Connected</h5>
+        <p class="text-muted small mb-0">
+            System status monitoring service returned no active service status metrics.
+        </p>
+    </div>
+}
+else
+{
+    <div class="row g-4 mb-4">
+        @foreach (var svc in Model)
         {
-            <div class="glass-card p-5 text-center">
-                <i class="bi bi-exclamation-triangle text-warning fs-1 mb-3 d-block"></i>
-                <h5 class="text-light">No System Status Adapters Connected</h5>
-                <p class="text-muted small">
-                    System status monitoring reader returned no service status metrics.
-                </p>
-            </div>
-        }
-        else
-        {
-            <div class="row g-4">
-                @foreach (var svc in Model)
-                {
-                    bool isOperational = svc.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase);
-                    bool isDegraded = svc.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase);
-                    bool isOutage = svc.Status.Contains("Outage", StringComparison.OrdinalIgnoreCase);
+            bool isOperational = svc.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase);
+            bool isDegraded = svc.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase);
 
-                    string borderClass = isOperational ? "border-success" : isDegraded ? "border-warning" : "border-danger";
-                    string textClass = isOperational ? "text-success" : isDegraded ? "text-warning" : "text-danger";
-                    string badgeBg = isOperational ? "bg-success" : isDegraded ? "bg-warning text-dark" : "bg-danger text-white";
-                    string iconClass = isOperational ? "bi-check-circle-fill" : isDegraded ? "bi-exclamation-triangle-fill" : "bi-x-circle-fill";
+            string borderTopClass = isOperational ? "border-success" : isDegraded ? "border-warning" : "border-danger";
+            string badgeClass = isOperational ? "bg-success bg-opacity-10 text-success border border-success border-opacity-25" : isDegraded ? "bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25" : "bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25";
+            string iconClass = isOperational ? "bi-check-circle-fill" : isDegraded ? "bi-exclamation-triangle-fill" : "bi-x-circle-fill";
 
-                    <div class="col-md-6 col-lg-4">
-                        <div class="glass-card p-4 h-100 border-top border-3 @borderClass">
-                            <div class="d-flex align-items-center justify-content-between mb-3">
-                                <h5 class="text-white mb-0 font-weight-semibold">@svc.ServiceName</h5>
-                                <span class="badge @badgeBg px-2 py-1">
-                                    <i class="bi @iconClass me-1"></i> @svc.Status
-                                </span>
-                            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100 border-top border-3 @borderTopClass">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h5 class="fw-bold mb-0 text-body">@svc.ServiceName</h5>
+                            <span class="badge @badgeClass px-2.5 py-1 rounded-pill">
+                                <i class="bi @iconClass me-1"></i> @svc.Status
+                            </span>
+                        </div>
 
-                            <p class="text-muted small mb-3" style="min-height: 40px;">
-                                @svc.Description
-                            </p>
+                        <p class="text-muted small mb-4 flex-grow-1">
+                            @svc.Description
+                        </p>
 
-                            <div class="pt-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between text-muted style="font-size: 0.8rem;">
-                                <span><i class="bi bi-clock me-1"></i> Last Checked</span>
-                                <span>@svc.LastChecked.ToLocalTime().ToString("T")</span>
-                            </div>
+                        <div class="pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="bi bi-clock me-1"></i> Last Checked</span>
+                            <span class="fw-medium font-monospace">@svc.LastChecked.ToLocalTime().ToString("T")</span>
                         </div>
                     </div>
-                }
+                </div>
             </div>
         }
+    </div>
+}
 
-        <div class="mt-4">
-            @await Html.PartialAsync("_KnowledgeBasePartial", approvedDocs)
-        </div>
+<div class="mt-4">
+    @await Html.PartialAsync("_KnowledgeBasePartial", approvedDocs)
 </div>
+

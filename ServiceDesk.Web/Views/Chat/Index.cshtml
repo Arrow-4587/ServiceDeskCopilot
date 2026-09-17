@@ -1,4 +1,5 @@
 @model ServiceDesk.Domain.Entities.ConversationSession
+@using ServiceDesk.Application.DTOs.Chat
 @{
     ViewData["Title"] = "Copilot Chat";
     ViewData["FullScreen"] = true;
@@ -8,25 +9,34 @@
         ? ((Guid)ViewBag.ActiveConversationId).ToString()
         : "";
 
-    var sidebarHistory = ViewBag.SidebarHistory as List<ServiceDesk.Domain.Entities.ConversationSession> ?? new();
+    var pagedHistory = ViewBag.HistoryPaged as PaginatedConversationHistoryDto;
+    var initialItems = pagedHistory?.Items ?? new List<ConversationSummaryDto>();
     var username = User.Identity?.Name ?? "You";
     var userInitial = username.Length > 0 ? username[0].ToString().ToUpper() : "U";
 }
 
-<!-- ─── Full-screen Chat Layout ─── -->
-<div style="display:flex; width:100%; height:100%; overflow:hidden;">
+<!-- Mobile Backdrop for History Drawer -->
+<div class="chat-history-backdrop" id="chatHistoryBackdrop" aria-hidden="true"></div>
 
-    <!-- CHAT PAGE -->
-    <div class="chat-center">
-        <div class="chat-topbar">
-            <div class="chat-topbar-title">
+<!-- ─── Full-screen Chat Layout ─── -->
+<div style="display:flex; width:100%; height:100%; overflow:hidden; position:relative;">
+
+    <!-- CHAT MAIN VIEWPORT -->
+    <div class="chat-center" style="flex:1; display:flex; flex-direction:column; height:100%; min-width:0; background:var(--bg-page);">
+        <div class="chat-topbar" style="display:flex; align-items:center; justify-content:space-between; padding:12px 20px; border-bottom:1px solid var(--border); background:var(--bg-surface); flex-shrink:0;">
+            <div class="chat-topbar-title" style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; color:var(--text-primary);">
                 <span class="online-dot"></span> Enterprise IT Copilot
-                <span style="color:var(--text-faint);font-weight:400;font-size:12px;">· Grounded RAG · ITSM Dispatch</span>
+                <span style="color:var(--text-muted); font-weight:400; font-size:12px;" class="d-none d-sm-inline">· Grounded RAG · ITSM Dispatch</span>
             </div>
-            <!-- Optional Topbar Actions -->
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary d-lg-none" id="btnToggleHistoryDrawer" aria-label="Toggle Conversation History" title="Toggle History">
+                    <i class="bi bi-clock-history me-1"></i> History
+                </button>
+            </div>
         </div>
 
-        <div class="chat-messages" id="chatMessages">
+        <!-- MESSAGES CONTAINER -->
+        <div class="chat-messages" id="chatMessages" style="flex:1; overflow-y:auto; padding:20px; scrollbar-width:thin;" role="log" aria-live="polite">
             @if (Model != null && Model.Messages.Any())
             {
                 <div class="messages-area">
@@ -91,13 +101,14 @@
             }
         </div>
 
-        <div class="chat-input-wrap">
+        <!-- INPUT FORM WRAPPER -->
+        <div class="chat-input-wrap" style="padding:16px 20px; background:var(--bg-surface); border-top:1px solid var(--border); flex-shrink:0;">
             <form id="chatForm" autocomplete="off">
                 <input type="hidden" id="conversationId" value="@activeId" />
                 <div class="chat-input-box">
-                    <textarea class="chat-input-textarea" rows="1" placeholder="Describe your IT issue or ask a question…" id="userMessage" required></textarea>
+                    <textarea class="chat-input-textarea" rows="1" placeholder="Describe your IT issue or ask a question…" id="userMessage" required aria-label="Message text input"></textarea>
                     <div class="chat-input-toolbar">
-                        <a href="@Url.Action("Index", "Chat")" class="tool-btn" title="New session" style="text-decoration:none;"><i class="bi bi-arrow-clockwise"></i></a>
+                        <button type="button" class="tool-btn" id="btnNewSessionReset" title="New session" aria-label="New session"><i class="bi bi-arrow-clockwise"></i></button>
                         <button type="button" class="tool-btn mic-btn" id="micBtnMain"
                                 data-speech-target="userMessage"
                                 data-speech-status="micStatusMain"
@@ -113,7 +124,7 @@
                               aria-live="polite"
                               aria-atomic="true"></span>
                         <div class="spacer"></div>
-                        <button type="submit" class="send-btn" id="btnSend" title="Send">
+                        <button type="submit" class="send-btn" id="btnSend" title="Send" aria-label="Send message">
                             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
                         </button>
                     </div>
@@ -123,34 +134,89 @@
         </div>
     </div>
 
-    <!-- HISTORY PANEL -->
-    <div class="history-panel">
+    <!-- DEDICATED HISTORY PANEL -->
+    <div class="history-panel" id="historyPanel" aria-label="Conversation History Navigation">
         <div class="history-header">
-            <span class="history-title">History Chat</span>
-            <a href="@Url.Action("Index", "Chat")" class="btn-new-chat" id="btnNewChat">+ New Chat</a>
+            <span class="history-title">
+                <i class="bi bi-clock-history text-primary"></i> Chat History
+            </span>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn-new-chat" id="btnNewSession" aria-label="Start New Chat">
+                    <i class="bi bi-plus-lg"></i> New Chat
+                </button>
+                <button type="button" class="btn btn-sm btn-close text-reset d-lg-none" id="btnCloseHistoryDrawer" aria-label="Close History Panel"></button>
+            </div>
         </div>
-        <div class="history-list">
-            @if (sidebarHistory.Any())
+
+        <!-- SEARCH INPUT -->
+        <div class="history-search-container">
+            <div class="history-search-box">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" id="chatHistorySearchInput" class="history-search-input" placeholder="Search conversations..." aria-label="Search chat history" autocomplete="off" />
+                <button type="button" id="btnClearHistorySearch" class="btn-clear-search" aria-label="Clear Search"><i class="bi bi-x-circle-fill"></i></button>
+            </div>
+        </div>
+
+        <!-- TIME FILTER PILLS -->
+        <div class="history-time-filters" id="historyFilterPills" role="tablist" aria-label="Time Filter Options">
+            <button type="button" class="history-filter-chip active" data-filter="all" role="tab" aria-selected="true">All</button>
+            <button type="button" class="history-filter-chip" data-filter="today" role="tab" aria-selected="false">Today</button>
+            <button type="button" class="history-filter-chip" data-filter="yesterday" role="tab" aria-selected="false">Yesterday</button>
+            <button type="button" class="history-filter-chip" data-filter="week" role="tab" aria-selected="false">7 Days</button>
+            <button type="button" class="history-filter-chip" data-filter="older" role="tab" aria-selected="false">Older</button>
+        </div>
+
+        <!-- LIVE ANNOUNCE REGION FOR ACCESSIBILITY -->
+        <div id="historyLiveAnnounce" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <!-- HISTORY LIST -->
+        <div class="history-list" id="historyListContainer">
+            @if (initialItems.Any())
             {
-                <div class="history-group-label">Recent</div>
-                @foreach (var item in sidebarHistory)
+                <div class="history-group-header">Recent</div>
+                @foreach (var item in initialItems)
                 {
                     var isActive = item.Id.ToString() == activeId;
-                    var label = item.Messages.FirstOrDefault()?.Content ?? "New conversation";
+                    var label = item.Title;
                     var truncated = label.Length > 36 ? label[..36] + "…" : label;
-                    <a class="history-item @(isActive ? "active-item" : "")" href="@Url.Action("Index", "Chat", new { conversationId = item.Id })" title="@label">
-                        <span class="history-item-icon">🕐</span>
-                        <span class="history-item-text">@truncated</span>
+                    <a class="history-item @(isActive ? "active-item" : "")" 
+                       data-id="@item.Id" 
+                       href="/Chat/Index?conversationId=@item.Id" 
+                       title="@label"
+                       aria-current="@(isActive ? "true" : "false")">
+                        <i class="bi bi-chat-left-text history-item-icon"></i>
+                        <div class="history-item-content">
+                            <div class="history-item-title">@truncated</div>
+                            <div class="history-item-meta">
+                                <span>@item.LastActivity.ToLocalTime().ToString("MMM dd, HH:mm")</span>
+                                <span class="badge bg-secondary-subtle text-secondary rounded-pill">@item.MessageCount msgs</span>
+                            </div>
+                        </div>
                     </a>
                 }
             }
             else
             {
-                <div class="text-center py-5" style="color:var(--text-muted);font-size:0.8rem;">
-                    <i class="bi bi-chat-left-dots" style="font-size:1.5rem;display:block;margin-bottom:8px;opacity:0.4;"></i>
-                    No conversations yet
+                <div class="text-center py-5 text-muted" id="historyEmptyState">
+                    <i class="bi bi-chat-left-dots fs-3 d-block mb-2 opacity-50"></i>
+                    <span class="small d-block">No conversations found</span>
                 </div>
             }
+        </div>
+
+        <!-- PAGINATION CONTROLS -->
+        <div class="history-footer-pagination" id="historyPaginationWrap">
+            <span class="history-page-range" id="historyPageRange">
+                @(pagedHistory != null && pagedHistory.TotalCount > 0 ? $"1–{Math.Min(10, pagedHistory.TotalCount)} of {pagedHistory.TotalCount}" : "0 items")
+            </span>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="pagination-btn" id="btnHistoryPrev" disabled aria-label="Previous History Page">
+                    <i class="bi bi-chevron-left"></i> Prev
+                </button>
+                <button type="button" class="pagination-btn" id="btnHistoryNext" @(pagedHistory == null || pagedHistory.TotalPages <= 1 ? "disabled" : "") aria-label="Next History Page">
+                    Next <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -164,7 +230,23 @@ $(document).ready(function () {
     const userMessageInput = $('#userMessage');
     const btnSend = $('#btnSend');
     const conversationIdInput = $('#conversationId');
-    const userInitial = '@userInitial';
+    
+    // History Panel elements
+    const historyPanel = $('#historyPanel');
+    const historyBackdrop = $('#chatHistoryBackdrop');
+    const historyListContainer = $('#historyListContainer');
+    const historySearchInput = $('#chatHistorySearchInput');
+    const btnClearSearch = $('#btnClearHistorySearch');
+    const historyPageRange = $('#historyPageRange');
+    const btnHistoryPrev = $('#btnHistoryPrev');
+    const btnHistoryNext = $('#btnHistoryNext');
+    const liveAnnounce = $('#historyLiveAnnounce');
+
+    let currentPage = @(pagedHistory?.PageNumber ?? 1);
+    let totalPages = @(pagedHistory?.TotalPages ?? 1);
+    let currentSearch = '';
+    let currentTimeFilter = 'all';
+    let searchDebounceTimer = null;
 
     function scrollToBottom() {
         chatMessages.scrollTop(chatMessages[0].scrollHeight);
@@ -192,6 +274,280 @@ $(document).ready(function () {
         }
     });
 
+    // Mobile Drawer Toggle
+    $('#btnToggleHistoryDrawer').on('click', function () {
+        historyPanel.addClass('drawer-open');
+        historyBackdrop.addClass('active');
+        $('#chatHistorySearchInput').focus();
+    });
+
+    function closeHistoryDrawer() {
+        historyPanel.removeClass('drawer-open');
+        historyBackdrop.removeClass('active');
+    }
+
+    $('#btnCloseHistoryDrawer, #chatHistoryBackdrop').on('click', function () {
+        closeHistoryDrawer();
+    });
+
+    // Load Paginated History Summaries
+    function fetchHistory(page, search, timeFilter) {
+        historyListContainer.css('opacity', '0.5');
+        $.ajax({
+            url: '/Chat/HistoryApi',
+            type: 'GET',
+            data: {
+                page: page,
+                pageSize: 10,
+                search: search || '',
+                timeFilter: timeFilter || 'all'
+            },
+            success: function (data) {
+                historyListContainer.css('opacity', '1');
+                currentPage = data.pageNumber;
+                totalPages = data.totalPages;
+
+                renderHistoryList(data);
+                
+                // Update pagination controls
+                const startRange = data.totalCount === 0 ? 0 : (data.pageNumber - 1) * data.pageSize + 1;
+                const endRange = Math.min(data.pageNumber * data.pageSize, data.totalCount);
+                historyPageRange.text(`${startRange}–${endRange} of ${data.totalCount}`);
+
+                btnHistoryPrev.prop('disabled', data.pageNumber <= 1);
+                btnHistoryNext.prop('disabled', data.pageNumber >= data.totalPages || data.totalPages === 0);
+
+                liveAnnounce.text(`Loaded history page ${data.pageNumber} of ${data.totalPages}. Total ${data.totalCount} conversations.`);
+            },
+            error: function () {
+                historyListContainer.css('opacity', '1');
+                liveAnnounce.text('Error loading chat history.');
+            }
+        });
+    }
+
+    function renderHistoryList(data) {
+        if (!data.items || data.items.length === 0) {
+            historyListContainer.html(`
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-chat-left-dots fs-3 d-block mb-2 opacity-50"></i>
+                    <span class="small d-block">No conversations found</span>
+                </div>`);
+            return;
+        }
+
+        const activeId = conversationIdInput.val();
+        let html = '<div class="history-group-header">Recent</div>';
+
+        data.items.forEach(item => {
+            const isActive = item.id.toString() === activeId;
+            const label = escapeHtml(item.title);
+            const truncated = label.length > 36 ? label.substring(0, 36) + '…' : label;
+            const formattedDate = new Date(item.lastActivity).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            html += `
+                <a class="history-item ${isActive ? 'active-item' : ''}" 
+                   data-id="${item.id}" 
+                   href="/Chat/Index?conversationId=${item.id}" 
+                   title="${label}"
+                   aria-current="${isActive ? 'true' : 'false'}">
+                    <i class="bi bi-chat-left-text history-item-icon"></i>
+                    <div class="history-item-content">
+                        <div class="history-item-title">${truncated}</div>
+                        <div class="history-item-meta">
+                            <span>${formattedDate}</span>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill">${item.messageCount} msgs</span>
+                        </div>
+                    </div>
+                </a>`;
+        });
+
+        historyListContainer.html(html);
+    }
+
+    // Debounced Search Input
+    historySearchInput.on('input', function () {
+        const val = $(this).val().trim();
+        currentSearch = val;
+        btnClearSearch.toggle(val.length > 0);
+
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            currentPage = 1;
+            fetchHistory(currentPage, currentSearch, currentTimeFilter);
+        }, 300);
+    });
+
+    btnClearSearch.on('click', function () {
+        historySearchInput.val('');
+        currentSearch = '';
+        btnClearSearch.hide();
+        currentPage = 1;
+        fetchHistory(currentPage, currentSearch, currentTimeFilter);
+    });
+
+    // Time Filter Chips
+    $('#historyFilterPills button').on('click', function () {
+        $('#historyFilterPills button').removeClass('active').attr('aria-selected', 'false');
+        $(this).addClass('active').attr('aria-selected', 'true');
+        currentTimeFilter = $(this).data('filter');
+        currentPage = 1;
+        fetchHistory(currentPage, currentSearch, currentTimeFilter);
+    });
+
+    // Pagination Buttons
+    btnHistoryPrev.on('click', function () {
+        if (currentPage > 1) {
+            currentPage--;
+            fetchHistory(currentPage, currentSearch, currentTimeFilter);
+        }
+    });
+
+    btnHistoryNext.on('click', function () {
+        if (currentPage < totalPages) {
+            currentPage++;
+            fetchHistory(currentPage, currentSearch, currentTimeFilter);
+        }
+    });
+
+    // Reopen Conversation via AJAX
+    $(document).on('click', '.history-item', function (e) {
+        e.preventDefault();
+        const convId = $(this).data('id');
+        if (!convId) return;
+
+        $('.history-item').removeClass('active-item').attr('aria-current', 'false');
+        $(this).addClass('active-item').attr('aria-current', 'true');
+
+        loadConversation(convId, true);
+        closeHistoryDrawer();
+    });
+
+    function loadConversation(convId, updateUrl) {
+        chatMessages.html('<div class="text-center py-5 text-muted"><div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>Loading conversation...</div>');
+
+        $.ajax({
+            url: '/Chat/Conversation/' + convId,
+            type: 'GET',
+            success: function (data) {
+                conversationIdInput.val(data.id);
+
+                if (updateUrl) {
+                    window.history.pushState({ conversationId: data.id }, '', '/Chat/Index?conversationId=' + data.id);
+                }
+
+                renderConversationMessages(data.messages);
+            },
+            error: function () {
+                chatMessages.html('<div class="alert alert-danger m-4">Failed to load conversation history.</div>');
+            }
+        });
+    }
+
+    function renderConversationMessages(messages) {
+        if (!messages || messages.length === 0) {
+            chatMessages.html(`
+                <div class="chat-welcome" id="chatWelcome">
+                    <div class="ai-orb"><div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="core"></div></div>
+                    <div class="welcome-title">Empty Conversation</div>
+                    <div class="welcome-subtitle">Ask a question to begin.</div>
+                </div>`);
+            return;
+        }
+
+        let html = '<div class="messages-area">';
+        messages.forEach(msg => {
+            const isUser = msg.senderRole.toLowerCase() === 'user';
+            const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            if (isUser) {
+                html += `
+                    <div class="msg-row user">
+                        <div>
+                            <div class="msg-bubble user">${escapeHtml(msg.content)}</div>
+                            <div class="msg-time">${formattedTime}</div>
+                        </div>
+                    </div>`;
+            } else {
+                let citationsHtml = '';
+                if (msg.citations && msg.citations.length > 0) {
+                    citationsHtml = `<div class="citation-row">`;
+                    msg.citations.forEach(c => {
+                        citationsHtml += `<span class="citation-chip-sm">📄 ${escapeHtml(c.documentName)} (${escapeHtml(c.section)})</span>`;
+                    });
+                    citationsHtml += '</div>';
+                }
+
+                let proposalHtml = '';
+                if (msg.suggestedIncidentDraft) {
+                    proposalHtml = `
+                        <div class="proposal-card">
+                            <div style="display:flex;align-items:center;gap:8px;font-weight:700;color:var(--accent-amber);margin-bottom:6px;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Incident Draft Proposed
+                            </div>
+                            <div style="font-size:0.85rem;color:var(--text-body);margin-bottom:8px;">
+                                <strong>Title:</strong> ${escapeHtml(msg.suggestedTitle || 'New IT Support Ticket')}
+                            </div>
+                            <button type="button" class="btn btn-sm btn-warning fw-semibold btn-generate-draft" 
+                                    data-title="${escapeHtml(msg.suggestedTitle || '')}" 
+                                    data-desc="${escapeHtml(msg.suggestedDescription || '')}" 
+                                    style="border-radius:8px;">
+                                <i class="bi bi-magic me-1"></i>Generate Incident Draft
+                            </button>
+                        </div>`;
+                }
+
+                html += `
+                    <div class="msg-row">
+                        <div>
+                            <div class="msg-bubble bot">
+                                <div class="msg-text-content">${escapeHtml(msg.content).replace(/\n/g, '<br/>')}</div>
+                                ${citationsHtml}
+                                ${proposalHtml}
+                            </div>
+                            <div class="msg-time-row">
+                                <span class="msg-time">${formattedTime} · Copilot</span>
+                                <button type="button" class="btn-copy-response" title="Copy response" aria-label="Copy response">
+                                    <i class="bi bi-copy"></i>
+                                    <span class="copy-text">Copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+        });
+        html += '</div>';
+
+        chatMessages.html(html);
+        scrollToBottom();
+    }
+
+    // New Session Action
+    $('#btnNewSession, #btnNewSessionReset').on('click', function (e) {
+        e.preventDefault();
+        conversationIdInput.val('');
+        $('.history-item').removeClass('active-item').attr('aria-current', 'false');
+        window.history.pushState({}, '', '/Chat/Index');
+
+        chatMessages.html(`
+            <div class="chat-welcome" id="chatWelcome">
+                <div class="ai-orb">
+                    <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+                    <div class="core"></div>
+                </div>
+                <div class="welcome-title">Good Morning, @username!</div>
+                <div class="welcome-subtitle">How can I assist you today?</div>
+                <div class="suggestion-grid">
+                    <button class="suggestion-chip chat-suggestion" data-query="VPN connection keeps dropping — how do I fix it?"><span class="chip-icon">📡</span>VPN keeps dropping</button>
+                    <button class="suggestion-chip chat-suggestion" data-query="How do I reset my expired password via SSPR?"><span class="chip-icon">🔑</span>Reset my password</button>
+                    <button class="suggestion-chip chat-suggestion" data-query="How do I request a developer laptop?"><span class="chip-icon">💻</span>Request a laptop</button>
+                    <button class="suggestion-chip chat-suggestion" data-query="Microsoft Teams or MFA isn't working — help!"><span class="chip-icon">🔒</span>MFA / Teams issues</button>
+                </div>
+            </div>`);
+        closeHistoryDrawer();
+    });
+
+    // Chat Submission Handler
     chatForm.submit(function (e) {
         e.preventDefault();
         const messageText = userMessageInput.val().trim();
@@ -207,9 +563,10 @@ $(document).ready(function () {
                     <div class="msg-time">Just now</div>
                 </div>
             </div>`;
-        chatMessages.find('.messages-area').append(userHtml);
         if (chatMessages.find('.messages-area').length === 0) {
-            chatMessages.append('<div class="messages-area">' + userHtml + '</div>');
+            chatMessages.html('<div class="messages-area">' + userHtml + '</div>');
+        } else {
+            chatMessages.find('.messages-area').append(userHtml);
         }
 
         userMessageInput.val('');
@@ -249,8 +606,8 @@ $(document).ready(function () {
 
                 if (data.conversationId) {
                     conversationIdInput.val(data.conversationId);
-                    // Update URL without page reload
                     window.history.replaceState({}, '', '/Chat/Index?conversationId=' + data.conversationId);
+                    fetchHistory(currentPage, currentSearch, currentTimeFilter);
                 }
 
                 let citationsHtml = '';
@@ -351,3 +708,4 @@ $(document).ready(function () {
 });
 </script>
 }
+

@@ -5,14 +5,16 @@
 }
 
 <div class="container py-5">
-    <div class="row justify-content-center align-items-center" style="min-height: 65vh;">
+    <div class="row justify-content-center align-items-center" style="min-height: 70vh;">
         <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden" style="background: var(--bg-surface); border: 1px solid var(--border-soft) !important;">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="card-body p-4 p-sm-5">
                     <div class="text-center mb-4">
-                        <div class="css-orb css-orb-large d-inline-flex mb-3" style="width: 52px; height: 52px;"></div>
-                        <h4 class="fw-bold mb-1" style="color: var(--text-heading);">Sign In</h4>
-                        <p class="small mb-0" style="color: var(--text-muted);">Enter your credentials to access IT Service Desk</p>
+                        <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary bg-opacity-10 text-primary p-3 mb-3">
+                            <i class="bi bi-shield-lock-fill fs-2"></i>
+                        </div>
+                        <h4 class="fw-bold mb-1">Sign In</h4>
+                        <p class="small text-muted mb-0">Enter your credentials to access IT Service Desk</p>
                     </div>
 
                     <form asp-action="Login" method="post">
@@ -21,28 +23,27 @@
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small rounded-3 mb-3" role="alert"></div>
 
                         <div class="mb-3">
-                            <label asp-for="Email" class="form-label small fw-semibold text-secondary">Email</label>
-                            <input asp-for="Email" class="form-control form-control-lg rounded-3 fs-6" placeholder="Email" style="border-color: #cbd5e1;" />
+                            <label asp-for="Email" class="form-label small fw-semibold text-body-secondary">Email Address</label>
+                            <input asp-for="Email" class="form-control form-control-lg fs-6" placeholder="name@company.com" />
                             <span asp-validation-for="Email" class="text-danger small mt-1 d-block"></span>
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="Password" class="form-label small fw-semibold text-secondary">Password</label>
-                            <input asp-for="Password" type="password" class="form-control form-control-lg rounded-3 fs-6" placeholder="Password" style="border-color: #cbd5e1;" />
+                            <label asp-for="Password" class="form-label small fw-semibold text-body-secondary">Password</label>
+                            <input asp-for="Password" type="password" class="form-control form-control-lg fs-6" placeholder="••••••••" />
                             <span asp-validation-for="Password" class="text-danger small mt-1 d-block"></span>
                         </div>
 
                         <div class="mb-4">
                             <div class="form-check">
                                 <input asp-for="RememberMe" class="form-check-input" type="checkbox" id="rememberMeCheck" />
-                                <label class="form-check-label small text-secondary" for="rememberMeCheck">
+                                <label class="form-check-label small text-body-secondary" for="rememberMeCheck">
                                     Remember me
                                 </label>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold rounded-3 shadow-sm"
-                                style="background: linear-gradient(135deg, #2563eb, #4f46e5); border: none;">
+                        <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold rounded-3 shadow-sm">
                             <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                         </button>
                     </form>
@@ -51,3 +52,4 @@
         </div>
     </div>
 </div>
+

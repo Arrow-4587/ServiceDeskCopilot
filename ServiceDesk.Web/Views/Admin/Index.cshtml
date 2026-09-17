@@ -7,33 +7,48 @@
     var auditLogs = ViewBag.AuditLogs as List<AuditLog>;
 }
 
-<div class="dashboard-page w-100">
-<div class="row mb-4">
-    <div class="col-12">
-        <h2 class="text-white"><i class="bi bi-gear-fill me-2"></i> Administration Dashboard</h2>
-        <p class="text-muted">Manage system configuration, AI prompts, tool access, and view immutable audit logs.</p>
+<div class="mb-4">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+        <div>
+            <h3 class="fw-bold mb-1">Administration & Governance</h3>
+            <p class="text-muted mb-0 small">System prompt overrides, AI tool permission allow-lists, and immutable security audit log.</p>
+        </div>
+        <div>
+            <span class="badge bg-purple bg-opacity-10 text-purple border border-purple border-opacity-25 px-3 py-2 rounded-pill shadow-sm">
+                <i class="bi bi-shield-lock-fill me-1"></i> Admin Privilege Level
+            </span>
+        </div>
     </div>
 </div>
 
 @if (TempData["SuccessMessage"] != null)
 {
-    <div class="alert alert-success glass-card text-success mb-4" role="alert">
-        <i class="bi bi-check-circle-fill me-2"></i> @TempData["SuccessMessage"]
+    <div class="alert alert-success border-0 shadow-sm mb-4 d-flex align-items-center" role="alert">
+        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+        <div>@TempData["SuccessMessage"]</div>
     </div>
 }
 
 <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#prompts" type="button" role="tab">System Prompts</button>
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#prompts" type="button" role="tab">
+            <i class="bi bi-sliders me-1.5"></i> System Prompts
+        </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tools" type="button" role="tab">Tool Allow-List</button>
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tools" type="button" role="tab">
+            <i class="bi bi-tools me-1.5"></i> Tool Allow-List
+        </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#audit" type="button" role="tab">Audit Log</button>
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#audit" type="button" role="tab">
+            <i class="bi bi-journal-check me-1.5"></i> Audit Log
+        </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#kbTab" type="button" role="tab">Knowledge Base</button>
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#kbTab" type="button" role="tab">
+            <i class="bi bi-journal-bookmark me-1.5"></i> Knowledge Base
+        </button>
     </li>
 </ul>
 
@@ -41,216 +56,224 @@
     
     <!-- Prompts Tab -->
     <div class="tab-pane fade show active" id="prompts" role="tabpanel">
-        <div class="glass-card p-4">
-            <h5 class="text-white mb-4">System Prompt Overrides</h5>
-            
-            <form asp-action="AddPrompt" method="post" class="mb-5 bg-dark p-3 rounded border border-secondary">
-                <h6 class="text-info mb-3">Add New Override</h6>
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Target Role</label>
-                        <select name="role" class="form-select bg-dark text-white border-secondary">
-                            <!option value="Employee">Employee</!option>
-                            <!option value="Analyst">Analyst</!option>
-                            <!option value="Manager">Manager</!option>
-                        </select>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-chat-left-quote me-2"></i> System Prompt Overrides</h5>
+            </div>
+            <div class="card-body p-4">
+                
+                <form asp-action="AddPrompt" method="post" class="mb-4 p-3.5 rounded bg-body-tertiary border">
+                    <h6 class="fw-bold mb-3 text-body"><i class="bi bi-plus-circle me-1 text-primary"></i> Add New Prompt Rule</h6>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small fw-semibold">Target Role</label>
+                            <select name="role" class="form-select">
+                                <!option value="Employee">Employee</!option>
+                                <!option value="Analyst">Analyst</!option>
+                                <!option value="Manager">Manager</!option>
+                            </select>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label text-muted small fw-semibold">Prompt Template</label>
+                            <textarea name="promptText" class="form-control" rows="2" placeholder="Custom system instructions..." required></textarea>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-plus-lg me-1"></i> Add Rule</button>
+                        </div>
                     </div>
-                    <div class="col-md-7">
-                        <label class="form-label text-muted small">Prompt Template</label>
-                        <textarea name="promptText" class="form-control bg-dark text-white border-secondary" rows="3" required></textarea>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Add</button>
-                    </div>
-                </div>
-            </form>
+                </form>
 
-            <div class="table-responsive">
-                <table class="table table-dark table-hover align-middle" data-paginate="10">
-                    <thead>
-                        <tr>
-                            <th>Target Role</th>
-                            <th>Prompt Preview</th>
-                            <th>Updated At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (prompts != null && prompts.Any())
-                        {
-                            foreach (var p in prompts)
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" data-paginate="10">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Target Role</th>
+                                <th>Prompt Preview</th>
+                                <th>Updated At</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (prompts != null && prompts.Any())
                             {
-                                <tr>
-                                    <td><span class="badge bg-secondary">@p.TargetRole</span></td>
-                                    <td><small class="text-muted text-truncate d-inline-block" style="max-width:300px;">@p.PromptText</small></td>
-                                    <td><small class="text-muted">@p.UpdatedAt.ToString("g")</small></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-info">Edit</button>
-                                    </td>
-                                </tr>
+                                foreach (var p in prompts)
+                                {
+                                    <tr>
+                                        <td><span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2.5 py-1">@p.TargetRole</span></td>
+                                        <td><span class="text-muted text-truncate d-inline-block small" style="max-width:340px;">@p.PromptText</span></td>
+                                        <td><span class="text-muted small">@p.UpdatedAt.ToString("g")</span></td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-outline-secondary rounded-pill">Edit</button>
+                                        </td>
+                                    </tr>
+                                }
                             }
-                        }
-                        else
-                        {
-                            <tr><td colspan="4" class="text-muted text-center py-3">No prompt overrides configured.</td></tr>
-                        }
-                    </tbody>
-                </table>
+                            else
+                            {
+                                <tr><td colspan="4" class="text-muted text-center py-4">No prompt overrides configured yet.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Tools Tab -->
     <div class="tab-pane fade" id="tools" role="tabpanel">
-        <div class="glass-card p-4">
-            <h5 class="text-white mb-4">AI Tool Permissions</h5>
-            
-            <form asp-action="AddTool" method="post" class="mb-5 bg-dark p-3 rounded border border-secondary">
-                <h6 class="text-info mb-3">Add Tool Rule</h6>
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Target Role</label>
-                        <select name="role" class="form-select bg-dark text-white border-secondary">
-                            <!option value="Employee">Employee</!option>
-                            <!option value="Analyst">Analyst</!option>
-                            <!option value="Manager">Manager</!option>
-                        </select>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-shield-check me-2"></i> AI Tool Permissions</h5>
+            </div>
+            <div class="card-body p-4">
+                
+                <form asp-action="AddTool" method="post" class="mb-4 p-3.5 rounded bg-body-tertiary border">
+                    <h6 class="fw-bold mb-3 text-body"><i class="bi bi-plus-circle me-1 text-primary"></i> Add Tool Rule</h6>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small fw-semibold">Target Role</label>
+                            <select name="role" class="form-select">
+                                <!option value="Employee">Employee</!option>
+                                <!option value="Analyst">Analyst</!option>
+                                <!option value="Manager">Manager</!option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small fw-semibold">Tool Name</label>
+                            <input type="text" name="toolName" class="form-control" placeholder="e.g. SearchKnowledge" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted small fw-semibold">Permission</label>
+                            <select name="isAllowed" class="form-select">
+                                <!option value="true">Allow</!option>
+                                <!option value="false">Deny</!option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-plus-lg me-1"></i> Add Rule</button>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label text-muted small">Tool Name</label>
-                        <input type="text" name="toolName" class="form-control bg-dark text-white border-secondary" placeholder="e.g. SearchKnowledge" required />
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label text-muted small">Permission</label>
-                        <select name="isAllowed" class="form-select bg-dark text-white border-secondary">
-                            <!option value="true">Allow</!option>
-                            <!option value="false">Deny</!option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i> Add</button>
-                    </div>
-                </div>
-            </form>
+                </form>
 
-            <div class="table-responsive">
-                <table class="table table-dark table-hover align-middle" data-paginate="10">
-                    <thead>
-                        <tr>
-                            <th>Role</th>
-                            <th>Tool Name</th>
-                            <th>Status</th>
-                            <th>Updated At</th>
-                            <th>Toggle</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (tools != null && tools.Any())
-                        {
-                            foreach (var t in tools)
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" data-paginate="10">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Role</th>
+                                <th>Tool Name</th>
+                                <th>Status</th>
+                                <th>Updated At</th>
+                                <th class="text-end">Toggle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (tools != null && tools.Any())
                             {
-                                <tr>
-                                    <td><span class="badge bg-secondary">@t.TargetRole</span></td>
-                                    <td><code>@t.ToolName</code></td>
-                                    <td>
-                                        @if (t.IsAllowed)
-                                        {
-                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25"><i class="bi bi-check-circle me-1"></i>Allowed</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25"><i class="bi bi-x-circle me-1"></i>Denied</span>
-                                        }
-                                    </td>
-                                    <td><small class="text-muted">@t.UpdatedAt.ToString("g")</small></td>
-                                    <td>
-                                        <form asp-action="ToggleTool" method="post" class="d-inline">
-                                            <input type="hidden" name="toolId" value="@t.Id" />
-                                            <input type="hidden" name="isAllowed" value="@(t.IsAllowed ? "false" : "true")" />
-                                            <button type="submit" class="btn btn-sm @(t.IsAllowed ? "btn-outline-danger" : "btn-outline-success")">
-                                                @(t.IsAllowed ? "Disable" : "Enable")
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
+                                foreach (var t in tools)
+                                {
+                                    <tr>
+                                        <td><span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2.5 py-1">@t.TargetRole</span></td>
+                                        <td><code class="text-primary font-monospace">@t.ToolName</code></td>
+                                        <td>
+                                            @if (t.IsAllowed)
+                                            {
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2.5 py-1"><i class="bi bi-check-circle me-1"></i>Allowed</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-2.5 py-1"><i class="bi bi-x-circle me-1"></i>Denied</span>
+                                            }
+                                        </td>
+                                        <td><span class="text-muted small">@t.UpdatedAt.ToString("g")</span></td>
+                                        <td class="text-end">
+                                            <form asp-action="ToggleTool" method="post" class="d-inline">
+                                                <input type="hidden" name="toolId" value="@t.Id" />
+                                                <input type="hidden" name="isAllowed" value="@(t.IsAllowed ? "false" : "true")" />
+                                                <button type="submit" class="btn btn-sm @(t.IsAllowed ? "btn-outline-danger" : "btn-outline-success") rounded-pill px-3">
+                                                    @(t.IsAllowed ? "Disable" : "Enable")
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
                             }
-                        }
-                        else
-                        {
-                            <tr><td colspan="5" class="text-muted text-center py-3">No tool rules configured.</td></tr>
-                        }
-                    </tbody>
-                </table>
+                            else
+                            {
+                                <tr><td colspan="5" class="text-muted text-center py-4">No tool rules configured.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Audit Tab -->
     <div class="tab-pane fade" id="audit" role="tabpanel">
-        <div class="glass-card p-4">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0 fw-700" style="color:var(--text-heading);">
-                    <i class="bi bi-shield-check me-2" style="color:var(--accent-emerald);"></i>Enterprise Audit Log
-                </h5>
-                <span class="badge" style="background:var(--brand-blue-light);color:var(--brand-blue);border:1px solid var(--brand-blue);">
-                    @(auditLogs?.Count ?? 0) Events
-                </span>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="fw-bold mb-0 text-primary"><i class="bi bi-shield-check me-2"></i> Security Audit Log</h5>
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1">
+                        @(auditLogs?.Count ?? 0) Events Logged
+                    </span>
+                </div>
             </div>
-            
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle small" data-paginate="10" style="--bs-table-bg:var(--bg-surface);--bs-table-color:var(--text-body);">
-                    <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.75rem; text-transform:uppercase;">
-                        <tr>
-                            <th class="ps-3">Timestamp</th>
-                            <th>User ID</th>
-                            <th>Role</th>
-                            <th>Action</th>
-                            <th>Details</th>
-                            <th class="pe-3 text-end">IP Address</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (auditLogs != null && auditLogs.Any())
-                        {
-                            foreach (var log in auditLogs)
+            <div class="card-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle small mb-0" data-paginate="10">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Timestamp</th>
+                                <th>User ID</th>
+                                <th>Role</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                                <th class="pe-3 text-end">IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (auditLogs != null && auditLogs.Any())
                             {
-                                var roleBadgeClass = log.UserRole switch
+                                foreach (var log in auditLogs)
                                 {
-                                    "Administrator" => "bg-purple-subtle text-purple border border-purple",
-                                    "Manager" => "bg-warning-subtle text-warning border border-warning",
-                                    "Analyst" => "bg-info-subtle text-info border border-info",
-                                    "Employee" => "bg-primary-subtle text-primary border border-primary",
-                                    _ => "bg-secondary-subtle text-secondary"
-                                };
+                                    var roleBadgeClass = log.UserRole switch
+                                    {
+                                        "Administrator" => "bg-purple bg-opacity-10 text-purple border border-purple border-opacity-25",
+                                        "Manager" => "bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25",
+                                        "Analyst" => "bg-info bg-opacity-10 text-info border border-info border-opacity-25",
+                                        "Employee" => "bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25",
+                                        _ => "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25"
+                                    };
 
-                                var actionBadgeClass = log.Action switch
-                                {
-                                    "UserLogin" => "text-success bg-success-subtle",
-                                    "UserLogout" => "text-secondary bg-secondary-subtle",
-                                    "ChatQuery" => "text-primary bg-primary-subtle",
-                                    "ApproveIncident" => "text-success bg-success-subtle",
-                                    "RejectIncident" => "text-danger bg-danger-subtle",
-                                    "IncidentCreated" => "text-warning bg-warning-subtle",
-                                    _ => "text-info bg-info-subtle"
-                                };
+                                    var actionBadgeClass = log.Action switch
+                                    {
+                                        "UserLogin" => "bg-success bg-opacity-10 text-success border border-success border-opacity-25",
+                                        "UserLogout" => "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25",
+                                        "ChatQuery" => "bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25",
+                                        "ApproveIncident" => "bg-success bg-opacity-10 text-success border border-success border-opacity-25",
+                                        "RejectIncident" => "bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25",
+                                        "IncidentCreated" => "bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25",
+                                        _ => "bg-info bg-opacity-10 text-info border border-info border-opacity-25"
+                                    };
 
-                                <tr>
-                                    <td class="ps-3 text-muted text-nowrap">@log.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                    <td class="fw-semibold" style="color:var(--text-heading);">@log.UserId</td>
-                                    <td><span class="badge rounded-pill @roleBadgeClass px-2 py-1" style="font-size:0.7rem;">@log.UserRole</span></td>
-                                    <td><span class="badge rounded-pill @actionBadgeClass px-2 py-1" style="font-size:0.7rem;">@log.Action</span></td>
-                                    <td style="max-width:340px;color:var(--text-body);">@log.Details</td>
-                                    <td class="pe-3 text-end font-monospace text-muted" style="font-size:0.75rem;">@log.IpAddress</td>
-                                </tr>
+                                    <tr>
+                                        <td class="ps-3 text-muted text-nowrap">@log.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                        <td class="fw-semibold text-body">@log.UserId</td>
+                                        <td><span class="badge rounded-pill @roleBadgeClass px-2 py-1">@log.UserRole</span></td>
+                                        <td><span class="badge rounded-pill @actionBadgeClass px-2 py-1">@log.Action</span></td>
+                                        <td style="max-width:340px;" class="text-body-secondary text-truncate" title="@log.Details">@log.Details</td>
+                                        <td class="pe-3 text-end font-monospace text-muted">@log.IpAddress</td>
+                                    </tr>
+                                }
                             }
-                        }
-                        else
-                        {
-                            <tr><td colspan="6" class="text-muted text-center py-4"><i class="bi bi-info-circle me-2"></i> No audit logs found in the database.</td></tr>
-                        }
-                    </tbody>
-                </table>
+                            else
+                            {
+                                <tr><td colspan="6" class="text-muted text-center py-4"><i class="bi bi-info-circle me-2"></i> No audit logs found in the database.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -261,4 +284,4 @@
     </div>
 
 </div>
-</div>
+

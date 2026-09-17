@@ -40,10 +40,27 @@
         if (topToggleBtn) topToggleBtn.addEventListener('click', toggleTheme);
     }
 
+    function initSidebarToggle() {
+        var shell = document.getElementById('appShell');
+        var toggleBtn = document.getElementById('sidebarToggleBtn');
+        if (!shell || !toggleBtn) return;
+
+        toggleBtn.addEventListener('click', function () {
+            shell.classList.toggle('sidebar-collapsed');
+            var isCollapsed = shell.classList.contains('sidebar-collapsed');
+            localStorage.setItem('sdesk_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+            document.cookie = "sdesk_sidebar_collapsed=" + isCollapsed + "; path=/; max-age=" + (365 * 86400);
+        });
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initTheme);
+        document.addEventListener('DOMContentLoaded', function () {
+            initTheme();
+            initSidebarToggle();
+        });
     } else {
         initTheme();
+        initSidebarToggle();
     }
 })();
 
@@ -581,42 +598,116 @@
 
         lastTriggerElement = triggerEl || document.activeElement;
 
-        var modalEl = document.getElementById('kbDocumentModal');
-        if (!modalEl) {
-            console.warn('[KnowledgeBase] Modal element #kbDocumentModal not found.');
+        var drawer = document.getElementById('kbDocumentDrawer');
+        var backdrop = document.getElementById('kbDrawerBackdrop');
+
+        if (drawer && backdrop) {
+            var drawerTitle = document.getElementById('kbDrawerTitle');
+            var drawerSection = document.getElementById('kbDrawerSection');
+            var drawerVersion = document.getElementById('kbDrawerVersion');
+            var drawerUpdated = document.getElementById('kbDrawerUpdated');
+            var drawerSpinner = document.getElementById('kbDrawerSpinner');
+            var drawerError = document.getElementById('kbDrawerError');
+            var drawerErrMsg = document.getElementById('kbDrawerErrorMessage');
+            var drawerContent = document.getElementById('kbDrawerContent');
+
+            if (drawerTitle) drawerTitle.textContent = 'Loading Document...';
+            if (drawerSpinner) drawerSpinner.style.display = 'block';
+            if (drawerError) drawerError.style.display = 'none';
+            if (drawerContent) { drawerContent.style.display = 'none'; drawerContent.innerHTML = ''; }
+
+            drawer.classList.add('active');
+            backdrop.classList.add('active');
+            drawer.setAttribute('aria-hidden', 'false');
+
+            function closeDrawer() {
+                drawer.classList.remove('active');
+                backdrop.classList.remove('active');
+                drawer.setAttribute('aria-hidden', 'true');
+                if (lastTriggerElement && typeof lastTriggerElement.focus === 'function') {
+                    lastTriggerElement.focus();
+                }
+            }
+
+            var btnClose = document.getElementById('kbDrawerBtnClose');
+            var btnCloseFooter = document.getElementById('kbDrawerBtnCloseFooter');
+            if (btnClose) btnClose.onclick = closeDrawer;
+            if (btnCloseFooter) btnCloseFooter.onclick = closeDrawer;
+            backdrop.onclick = closeDrawer;
+
+            fetch('/Knowledge/Document/' + encodeURIComponent(docId), {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function (res) {
+                if (drawerSpinner) drawerSpinner.style.display = 'none';
+                if (res && res.success && res.data) {
+                    var doc = res.data.document;
+                    var renderedHtml = res.data.renderedHtml;
+
+                    if (drawerTitle) drawerTitle.textContent = doc.documentName || doc.id;
+                    if (drawerSection) drawerSection.textContent = doc.section || 'General';
+                    if (drawerVersion) drawerVersion.textContent = 'v' + (doc.version || '1.0');
+                    if (drawerUpdated && doc.lastModified) {
+                        var dt = new Date(doc.lastModified);
+                        drawerUpdated.textContent = isNaN(dt.getTime()) ? doc.lastModified : dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                    }
+                    if (drawerContent) {
+                        drawerContent.innerHTML = renderedHtml;
+                        drawerContent.style.display = 'block';
+                        drawerContent.dataset.rawText = drawerContent.innerText || drawerContent.textContent || '';
+                    }
+                } else {
+                    throw new Error((res && res.message) ? res.message : 'Failed to retrieve document details.');
+                }
+            })
+            .catch(function (err) {
+                if (drawerSpinner) drawerSpinner.style.display = 'none';
+                if (drawerError) {
+                    if (drawerErrMsg) drawerErrMsg.textContent = err.message || 'Azure Blob Storage knowledge source is currently unavailable.';
+                    drawerError.style.display = 'block';
+                }
+            });
+
+            var copyBtn = document.getElementById('kbDrawerBtnCopy');
+            if (copyBtn) {
+                copyBtn.onclick = function() {
+                    if (!drawerContent) return;
+                    var text = drawerContent.dataset.rawText || drawerContent.innerText || '';
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(text).then(function() {
+                            var copyTextEl = document.getElementById('kbDrawerCopyText');
+                            if (copyTextEl) copyTextEl.textContent = 'Copied!';
+                            setTimeout(function() { if (copyTextEl) copyTextEl.textContent = 'Copy'; }, 2000);
+                        });
+                    }
+                };
+            }
+
+            var printBtn = document.getElementById('kbDrawerBtnPrint');
+            if (printBtn) {
+                printBtn.onclick = function() {
+                    if (!drawerContent) return;
+                    var title = drawerTitle ? drawerTitle.textContent : 'Document';
+                    var printWin = window.open('', '_blank', 'width=800,height=600');
+                    if (!printWin) return;
+                    printWin.document.write('<html><head><title>' + title + '</title></head><body><h1>' + title + '</h1>' + drawerContent.innerHTML + '</body></html>');
+                    printWin.document.close();
+                    printWin.focus();
+                    setTimeout(function() { printWin.print(); printWin.close(); }, 250);
+                };
+            }
+
             return;
         }
 
-        var modalTitle = document.getElementById('kbModalTitle');
-        var modalSection = document.getElementById('kbModalSection');
-        var modalVersion = document.getElementById('kbModalVersion');
-        var modalStatus = document.getElementById('kbModalStatus');
-        var modalUpdated = document.getElementById('kbModalUpdated');
-        var modalSpinner = document.getElementById('kbModalSpinner');
-        var modalError = document.getElementById('kbModalError');
-        var modalErrMsg = document.getElementById('kbModalErrorMessage');
-        var modalContent = document.getElementById('kbModalContent');
-
-        // Reset UI state
-        if (modalTitle) modalTitle.textContent = 'Loading Document...';
-        if (modalSection) modalSection.textContent = '—';
-        if (modalVersion) modalVersion.textContent = '—';
-        if (modalUpdated) modalUpdated.textContent = '—';
-        if (modalSpinner) modalSpinner.style.display = 'block';
-        if (modalError) modalError.style.display = 'none';
-        if (modalContent) {
-            modalContent.style.display = 'none';
-            modalContent.innerHTML = '';
-            delete modalContent.dataset.rawText;
-        }
-
-        // Show Bootstrap Modal
-        var bsModal = null;
-        if (window.bootstrap && window.bootstrap.Modal) {
-            bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-            bsModal.show();
-        } else if (window.jQuery) {
-            window.jQuery(modalEl).modal('show');
+        var modalEl = document.getElementById('kbDocumentModal');
+        if (!modalEl) {
+            console.warn('[KnowledgeBase] Document drawer/modal element not found.');
+            return;
         }
 
         // Fetch document detail from dedicated endpoint
