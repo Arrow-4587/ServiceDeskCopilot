@@ -79,6 +79,7 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
+    await DataSeeder.SeedAsync(dbContext);
 
     var ingestionService = scope.ServiceProvider.GetRequiredService<IKnowledgeIngestionService>();
     await ingestionService.IngestApprovedKnowledgeDocumentsAsync();

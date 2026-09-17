@@ -14,7 +14,7 @@ public static class DataSeeder
         {
             var users = new List<User>
             {
-                new User("employee1", "employee@company.com", UserRole.Employee, "Employee123!"),
+                new User(Guid.Parse("11111111-1111-1111-1111-111111111111"), "employee1", "employee@company.com", UserRole.Employee, "Employee123!"),
                 new User("analyst1", "analyst@company.com", UserRole.Analyst, "Analyst123!"),
                 new User("manager1", "manager@company.com", UserRole.Manager, "Manager123!"),
                 new User("admin1", "admin@company.com", UserRole.Administrator, "Admin123!")

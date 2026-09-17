@@ -33,13 +33,19 @@ public class PlannerService : IPlannerService
         var lower = userMessage.ToLowerInvariant();
         _logger.LogInformation("Planner Agent analyzing request intent: {UserMessage}", userMessage);
 
-        bool isTicketRequest = lower.Contains("raise ticket") || lower.Contains("create ticket") ||
-                               lower.Contains("open ticket") || lower.Contains("report incident") ||
-                               lower.Contains("submit ticket");
+        bool isTicketRequest = lower.Contains("raise ticket") || lower.Contains("raise a ticket") ||
+                               lower.Contains("create ticket") || lower.Contains("create a ticket") ||
+                               lower.Contains("open ticket") || lower.Contains("open a ticket") ||
+                               lower.Contains("report incident") || lower.Contains("submit ticket") ||
+                               lower.Contains("submit a ticket") || lower.Contains("file a ticket") ||
+                               lower.Contains("draft ticket") || lower.Contains("create draft") ||
+                               lower.Contains("incident draft") || lower.Contains("draft an incident") ||
+                               (lower.Contains("ticket") && (lower.Contains("please") || lower.Contains("need") || lower.Contains("want") || lower.Contains("can you") || lower.Contains("create") || lower.Contains("open") || lower.Contains("draft")));
 
         bool isStatusCheck = lower.Contains("status") || lower.Contains("down") ||
                              lower.Contains("outage") || lower.Contains("offline") ||
-                             lower.Contains("broken") || lower.Contains("working");
+                             lower.Contains("broken") || lower.Contains("working") ||
+                             lower.Contains("affected") || lower.Contains("health");
 
         string? detectedService = null;
         if (lower.Contains("vpn") || lower.Contains("anyconnect") || lower.Contains("cisco")) detectedService = "GlobalProtect VPN";

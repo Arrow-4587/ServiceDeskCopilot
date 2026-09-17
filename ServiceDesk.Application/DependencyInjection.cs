@@ -23,7 +23,9 @@ public static class DependencyInjection
 
         // Application Use Cases
         services.AddTransient<SearchKnowledgeUseCase>();
+        services.AddTransient<GetSystemStatusUseCase>();
         services.AddTransient<CreateIncidentDraftUseCase>();
+        services.AddTransient<ApproveAndSubmitIncidentUseCase>();
 
         return services;
     }

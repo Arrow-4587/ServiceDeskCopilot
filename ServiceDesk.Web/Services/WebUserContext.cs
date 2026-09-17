@@ -6,7 +6,6 @@ namespace ServiceDesk.Web.Services;
 
 public class WebUserContext : IUserContext
 {
-    private static readonly Guid DefaultDemoUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public WebUserContext(IHttpContextAccessor httpContextAccessor)

@@ -35,6 +35,15 @@ public class User
         CreatedAt = DateTime.UtcNow;
     }
 
+    public User(Guid id, string username, string email, UserRole role, string password = "Password123!")
+        : this(username, email, role, password)
+    {
+        if (id != Guid.Empty)
+        {
+            Id = id;
+        }
+    }
+
     public bool VerifyPassword(string inputPassword)
     {
         if (string.IsNullOrWhiteSpace(inputPassword))

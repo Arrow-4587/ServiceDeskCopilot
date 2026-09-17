@@ -94,6 +94,20 @@
                         <button type="button" class="tool-btn" title="Attach"><i class="bi bi-paperclip"></i></button>
                         <a href="@Url.Action("Index", "Chat")" class="tool-btn" title="New session" style="text-decoration:none;"><i class="bi bi-arrow-clockwise"></i></a>
                         <button type="button" class="tool-chip">✦ AI Mode</button>
+                        <button type="button" class="tool-btn mic-btn" id="micBtnMain"
+                                data-speech-target="userMessage"
+                                data-speech-status="micStatusMain"
+                                title="Start voice input"
+                                aria-label="Start voice input"
+                                aria-pressed="false">
+                            <i class="bi bi-mic-fill"></i>
+                            <i class="bi bi-mic-mute-fill" style="display:none;"></i>
+                        </button>
+                        <span id="micStatusMain"
+                              class="mic-status-text"
+                              role="status"
+                              aria-live="polite"
+                              aria-atomic="true"></span>
                         <div class="spacer"></div>
                         <button type="submit" class="send-btn" id="btnSend" title="Send">
                             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>

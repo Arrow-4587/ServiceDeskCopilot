@@ -32,15 +32,18 @@ public static class DependencyInjection
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IIncidentDraftRepository, IncidentDraftRepository>();
         
+        // System Status Reader
+        services.AddSingleton<ISystemStatusReader, FakeSystemStatusReader>();
+
+        // Incident Ticketing Gateway
+        services.AddSingleton<IIncidentGateway, MockIncidentGatewayAdapter>();
+        
         // Audit Logger
         services.AddScoped<IAuditLogger, AuditLogger>();
 
         // Knowledge source is Azure Blob Storage only. Local project files are not a runtime source.
         services.AddSingleton<AzureBlobKnowledgeSourceStore>();
         services.AddSingleton<IKnowledgeSourceStore>(sp => sp.GetRequiredService<AzureBlobKnowledgeSourceStore>());
-
-        if (bool.TryParse(configuration["FeatureFlags:UseMockTicketGateway"], out var useMockTicketGateway) && useMockTicketGateway)
-            throw new InvalidOperationException("UseMockTicketGateway must be false for Azure-only runtime operation.");
 
         // Azure AI Search and Azure OpenAI embedding services are mandatory.
         services.AddHttpClient();

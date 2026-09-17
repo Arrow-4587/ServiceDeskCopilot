@@ -77,6 +77,16 @@
                           placeholder="Type a message or issue..."
                           style="resize:none;font-size:0.855rem;color:var(--text-body);background:transparent;padding:11px 14px;box-shadow:none;"
                           required></textarea>
+                <button type="button" id="micBtnWidget"
+                        class="btn d-flex align-items-center justify-content-center border-0 mic-btn mic-btn-widget"
+                        data-speech-target="widgetUserMessage"
+                        data-speech-status="micStatusWidget"
+                        title="Start voice input"
+                        aria-label="Start voice input"
+                        aria-pressed="false"
+                        style="background:transparent;color:var(--text-muted);border-left:1px solid var(--border-soft);border-radius:0;padding:0 13px;transition:color 0.2s,background 0.2s;">
+                    <i class="bi bi-mic-fill" style="font-size:1rem;"></i>
+                </button>
                 <button type="submit" id="btnWidgetSend"
                         class="btn d-flex align-items-center justify-content-center border-0"
                         style="background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border-radius:0 10px 10px 0;padding:0 18px;transition:filter 0.2s;"
@@ -85,6 +95,12 @@
                 </button>
             </div>
         </form>
+        <span id="micStatusWidget"
+              class="mic-status-text d-block text-center mt-1"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              style="font-size:0.72rem;min-height:1.1em;"></span>
     </div>
 </div>
 
@@ -282,9 +298,8 @@
 
                     let proposalHtml = '';
                     if (data.suggestedIncidentDraft) {
-                        const targetUrl = data.suggestedDraftId 
-                            ? `/Incident/Details/${data.suggestedDraftId}` 
-                            : '/Incident';
+                        const hasDraftId = !!data.suggestedDraftId;
+                        const btnText = hasDraftId ? 'Review Incident Draft' : 'Generate Incident Draft';
 
                         proposalHtml = `
                             <div class="proposal-banner p-2 mt-2" style="font-size: 0.82rem;">
@@ -295,10 +310,11 @@
                                     <strong>Title:</strong> ${escapeHtml(data.suggestedTitle || 'New IT Support Ticket')}
                                 </div>
                                 <button type="button" class="btn btn-sm btn-warning w-100 fw-bold py-1 btn-generate-draft" 
+                                        data-draft-id="${data.suggestedDraftId || ''}" 
                                         data-title="${escapeHtml(data.suggestedTitle || '')}" 
                                         data-desc="${escapeHtml(data.suggestedDescription || '')}" 
                                         style="font-size: 0.8rem;">
-                                    <i class="bi bi-magic me-1"></i> Generate Incident Draft
+                                    <i class="bi bi-magic me-1"></i> ${btnText}
                                 </button>
                             </div>`;
                     }
@@ -339,6 +355,12 @@
                 const btn = e.target.closest('.btn-generate-draft');
                 if (!btn) return;
                 
+                const draftId = btn.getAttribute('data-draft-id');
+                if (draftId) {
+                    window.location.href = '/Incident/Details/' + draftId;
+                    return;
+                }
+
                 btn.disabled = true;
                 btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Generating...';
                 const title = btn.getAttribute('data-title');

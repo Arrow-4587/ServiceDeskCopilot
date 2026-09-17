@@ -920,3 +920,74 @@ td.text-secondary { color: var(--text-muted) !important; }
 /* card-badge uses brand colour token */
 .card-badge { color: var(--brand-blue); background: var(--brand-blue-light); }
 
+/* ─────────────────────────────────────────────
+   MICROPHONE / SPEECH-TO-TEXT BUTTON
+───────────────────────────────────────────── */
+
+/* Base state */
+.mic-btn {
+  position: relative;
+  color: var(--text-muted);
+  transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+}
+
+.mic-btn:hover {
+  color: var(--brand-blue);
+  background: var(--accent-muted2) !important;
+}
+
+/* Recording state — pulsing ring + icon colour change */
+.mic-btn.mic-recording {
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.10) !important;
+  animation: mic-pulse 1.4s ease-in-out infinite;
+}
+
+.mic-btn.mic-recording i.bi-mic-fill {
+  /* keep mic-fill visible while recording */
+}
+
+/* Pulsing ring keyframes */
+@keyframes mic-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.40); }
+  50%      { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+}
+
+/* Recording label badge inside the button (screen-reader friendly) */
+.mic-btn .mic-recording-label {
+  display: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #ef4444;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.mic-btn.mic-recording .mic-recording-label {
+  display: inline;
+}
+
+/* Status text beneath/beside inputs */
+.mic-status-text {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  min-height: 1.1em;
+  transition: color 0.2s;
+}
+
+.mic-status-text:not(:empty) {
+  color: #ef4444;
+}
+
+/* Widget mic button tweaks */
+.mic-btn-widget {
+  border-left: 1px solid var(--border-soft) !important;
+  border-radius: 0 !important;
+}
+
+.mic-btn-widget.mic-recording {
+  border-left-color: rgba(239,68,68,0.3) !important;
+}
+

@@ -191,6 +191,7 @@ public class IncidentController : Controller
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> CreateDraftManual(
         [FromBody] ManualDraftRequest request,
         [FromServices] CreateIncidentDraftUseCase createIncidentDraftUseCase,

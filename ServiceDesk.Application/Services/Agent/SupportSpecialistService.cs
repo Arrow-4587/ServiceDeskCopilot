@@ -52,14 +52,12 @@ public class SupportSpecialistService : ISupportSpecialistService
         var contextBuilder = new StringBuilder();
         if (statuses != null && statuses.Count > 0)
         {
-            var matchingStatus = statuses.FirstOrDefault(s =>
-                !string.IsNullOrWhiteSpace(plan.ServiceName) &&
-                s.ServiceName.Contains(plan.ServiceName, StringComparison.OrdinalIgnoreCase));
-
-            if (matchingStatus != null)
+            contextBuilder.AppendLine("CURRENT IT SERVICE HEALTH STATUSES:");
+            foreach (var status in statuses)
             {
-                contextBuilder.AppendLine($"Service Health Status: {matchingStatus.ServiceName} is currently {matchingStatus.Status} ({matchingStatus.Description}).\n");
+                contextBuilder.AppendLine($"- {status.ServiceName}: Status={status.Status}, Details={status.Description}");
             }
+            contextBuilder.AppendLine();
         }
 
         if (knowledge != null && knowledge.Count > 0)
@@ -88,7 +86,7 @@ public class SupportSpecialistService : ISupportSpecialistService
                 string answer = modelResponse.Answer.Trim();
                 var impact = IncidentImpact.Medium;
                 var urgency = IncidentUrgency.Medium;
-                bool suggestDraft = plan.RequiresIncidentDraft || knowledge == null || knowledge.Count == 0;
+                bool suggestDraft = plan.RequiresIncidentDraft || (!plan.RequiresStatusCheck && (knowledge == null || knowledge.Count == 0));
 
                 return new SpecialistResponseDto(
                     Answer: answer,
@@ -122,6 +120,37 @@ public class SupportSpecialistService : ISupportSpecialistService
             answerBuilder.AppendLine(excerpt);
             answerBuilder.AppendLine();
             answerBuilder.AppendLine($"For further details, refer to **{primaryDoc.DocumentName}** ({primaryDoc.Section}). If these diagnostic steps do not resolve your issue, I can generate an official incident draft for IT Service Desk escalation.");
+        }
+        else if (statuses != null && statuses.Count > 0 && plan.RequiresStatusCheck)
+        {
+            var degradedOrDown = statuses.Where(s => !string.Equals(s.Status, "Operational", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (degradedOrDown.Count > 0)
+            {
+                answerBuilder.AppendLine("Current Affected Services:\n");
+                foreach (var item in degradedOrDown)
+                {
+                    answerBuilder.AppendLine($"- **{item.ServiceName}**: {item.Status} — {item.Description}");
+                }
+                var operational = statuses.Where(s => string.Equals(s.Status, "Operational", StringComparison.OrdinalIgnoreCase)).ToList();
+                if (operational.Count > 0)
+                {
+                    answerBuilder.AppendLine($"\nAll other services ({string.Join(", ", operational.Select(o => o.ServiceName))}) are operational.");
+                }
+            }
+            else
+            {
+                answerBuilder.AppendLine("All enterprise IT services are currently fully operational.");
+            }
+
+            return new SpecialistResponseDto(
+                Answer: answerBuilder.ToString().Trim(),
+                Citations: citations,
+                RequiresClarification: false,
+                SuggestIncidentDraft: false,
+                SuggestedTitle: null,
+                SuggestedDescription: null,
+                Category: "Service Health"
+            );
         }
         else
         {

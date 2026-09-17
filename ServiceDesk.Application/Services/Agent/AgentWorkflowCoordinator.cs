@@ -15,6 +15,7 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
     private readonly ISupportSpecialistService _specialistService;
     private readonly IIncidentReviewerService _reviewerService;
     private readonly SearchKnowledgeUseCase _searchKnowledgeUseCase;
+    private readonly GetSystemStatusUseCase _getSystemStatusUseCase;
     private readonly CreateIncidentDraftUseCase _createIncidentDraftUseCase;
     private readonly IIncidentDraftRepository? _draftRepository;
     private readonly IUserContext _userContext;
@@ -26,6 +27,7 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
         ISupportSpecialistService specialistService,
         IIncidentReviewerService reviewerService,
         SearchKnowledgeUseCase searchKnowledgeUseCase,
+        GetSystemStatusUseCase getSystemStatusUseCase,
         CreateIncidentDraftUseCase createIncidentDraftUseCase,
         IUserContext userContext,
         IAiTelemetry telemetry,
@@ -36,6 +38,7 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
         _specialistService = specialistService ?? throw new ArgumentNullException(nameof(specialistService));
         _reviewerService = reviewerService ?? throw new ArgumentNullException(nameof(reviewerService));
         _searchKnowledgeUseCase = searchKnowledgeUseCase ?? throw new ArgumentNullException(nameof(searchKnowledgeUseCase));
+        _getSystemStatusUseCase = getSystemStatusUseCase ?? throw new ArgumentNullException(nameof(getSystemStatusUseCase));
         _createIncidentDraftUseCase = createIncidentDraftUseCase ?? throw new ArgumentNullException(nameof(createIncidentDraftUseCase));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
@@ -68,8 +71,12 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
             knowledgeChunks = await _searchKnowledgeUseCase.ExecuteAsync(new SearchQueryDto(plan.SearchQuery), cancellationToken);
         }
 
-        // Status data is intentionally omitted until an authenticated Azure monitoring integration is configured.
-        var statuses = Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
+        IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto> statuses = Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
+        if (plan.RequiresStatusCheck)
+        {
+            _telemetry.TrackToolCall("SystemStatusCheck", true, correlationId);
+            statuses = await _getSystemStatusUseCase.GetAllAsync(cancellationToken);
+        }
 
         // -------------------------------------------------------------
         // STEP 3: Support Specialist Agent (Troubleshoots with grounded evidence)
@@ -96,12 +103,34 @@ public class AgentWorkflowCoordinator : IAgentWorkflow
                 Category: specialistResult.Category ?? plan.DraftCategory ?? "General IT",
                 Impact: specialistResult.Impact,
                 Urgency: specialistResult.Urgency,
-                SystemStatusEvidence: statuses.Length > 0 ? string.Join("; ", statuses.Select(s => $"{s.ServiceName}: {s.Status}")) : ""
+                SystemStatusEvidence: statuses.Count > 0 ? string.Join("; ", statuses.Select(s => $"{s.ServiceName}: {s.Status}")) : ""
             );
 
             var reviewResult = await _reviewerService.ReviewDraftDtoAsync(unreviewedDto, cancellationToken);
             suggestedTitle = reviewResult.RedactedTitle;
             suggestedDescription = reviewResult.RedactedDescription;
+
+            if (_userContext.IsAuthenticated)
+            {
+                try
+                {
+                    var draftToSave = new CreateIncidentDraftDto(
+                        Title: suggestedTitle,
+                        Description: suggestedDescription,
+                        Category: unreviewedDto.Category,
+                        Impact: unreviewedDto.Impact,
+                        Urgency: unreviewedDto.Urgency,
+                        SystemStatusEvidence: unreviewedDto.SystemStatusEvidence
+                    );
+
+                    var createdDraft = await _createIncidentDraftUseCase.ExecuteAsync(draftToSave, cancellationToken);
+                    createdDraftId = createdDraft.Id;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[AgentWorkflow] Failed to save incident draft entity.");
+                }
+            }
         }
 
         stopwatch.Stop();
