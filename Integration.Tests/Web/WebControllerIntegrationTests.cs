@@ -14,7 +14,6 @@ using ServiceDesk.Domain.Enums;
 using ServiceDesk.Infrastructure.Adapters.Status;
 using ServiceDesk.Infrastructure.Adapters.Ticketing;
 using ServiceDesk.Infrastructure.Services;
-using ServiceDesk.Infrastructure.Services;
 using ServiceDesk.Infrastructure.Persistence;
 using ServiceDesk.Web.Controllers;
 using Microsoft.EntityFrameworkCore;

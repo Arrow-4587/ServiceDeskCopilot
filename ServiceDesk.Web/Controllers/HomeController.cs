@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceDesk.Application.Common.Interfaces;
+using ServiceDesk.Application.DTOs.Dashboard;
 using ServiceDesk.Infrastructure.Persistence;
 using ServiceDesk.Web.Models;
 using System.Diagnostics;
@@ -88,7 +89,7 @@ namespace ServiceDesk.Web.Controllers
                     .AsNoTracking()
                     .Where(t => endUserIds.Contains(t.UserId))
                     .ToListAsync();
-                
+
                 var allConversations = await _conversationRepository.GetAllAsync();
                 model.AllChatHistory = allConversations.Where(c => endUserIds.Contains(c.UserId)).ToList();
             }
@@ -107,6 +108,18 @@ namespace ServiceDesk.Web.Controllers
             {
                 _logger.LogError(ex, "[HomeController] Error fetching approved knowledge documents from Azure Blob Storage.");
                 model.KnowledgeDocuments = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
+            }
+
+            if (userRole.Equals("Analyst", StringComparison.OrdinalIgnoreCase))
+            {
+                model.AnalystMetrics = AnalystDashboardMetrics.From(
+                    model.AllTickets,
+                    model.AllChatHistory,
+                    model.RegisteredUsers
+                        .Where(u => u.Role == ServiceDesk.Domain.Enums.UserRole.Employee || u.Role == ServiceDesk.Domain.Enums.UserRole.Manager)
+                        .Select(u => u.Id)
+                        .ToList(),
+                    model.KnowledgeDocuments.Count);
             }
 
             sw.Stop();

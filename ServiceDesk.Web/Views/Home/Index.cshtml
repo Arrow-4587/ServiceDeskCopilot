@@ -142,7 +142,7 @@
                 </div>
                 <div class="stat-card-body">
                     <div class="stat-label">Triage Queue</div>
-                    <div class="stat-value">@Model.AllTickets.Count</div>
+                    <div class="stat-value">@Model.AnalystMetrics.TriageQueueCount</div>
                     <a asp-controller="Incident" asp-action="Index" class="stat-link">Incident Queue &rarr;</a>
                 </div>
             </div>
@@ -153,7 +153,7 @@
                 </div>
                 <div class="stat-card-body">
                     <div class="stat-label">Pending Approval</div>
-                    <div class="stat-value">@Model.AllTickets.Count(t => t.Status == ServiceDesk.Domain.Enums.IncidentStatus.Draft)</div>
+                    <div class="stat-value">@Model.AnalystMetrics.PendingApprovalCount</div>
                     <a asp-controller="Incident" asp-action="Index" class="stat-link">Review Tickets &rarr;</a>
                 </div>
             </div>
@@ -164,7 +164,7 @@
                 </div>
                 <div class="stat-card-body">
                     <div class="stat-label">End-User Sessions</div>
-                    <div class="stat-value">@Model.AllChatHistory.Count</div>
+                    <div class="stat-value">@Model.AnalystMetrics.EndUserSessionCount</div>
                     <a asp-controller="Chat" asp-action="History" class="stat-link">Chat History &rarr;</a>
                 </div>
             </div>
@@ -175,7 +175,7 @@
                 </div>
                 <div class="stat-card-body">
                     <div class="stat-label">Knowledge Base</div>
-                    <div class="stat-value">@Model.KnowledgeDocuments.Count</div>
+                    <div class="stat-value">@Model.AnalystMetrics.KnowledgeBaseCount</div>
                     <a asp-controller="Knowledge" asp-action="Index" class="stat-link">Browse KB &rarr;</a>
                 </div>
             </div>

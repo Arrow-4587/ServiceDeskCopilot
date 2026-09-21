@@ -34,6 +34,16 @@ public class ConversationSession
         return message;
     }
 
+    public Message AddUserMessage(string content)
+    {
+        return AddMessage("User", content);
+    }
+
+    public Message AddAssistantMessage(string content, List<ValueObjects.Citation>? citations = null)
+    {
+        return AddMessage("Assistant", content, citations);
+    }
+
     public void CloseSession()
     {
         IsActive = false;

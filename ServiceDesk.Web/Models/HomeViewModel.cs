@@ -1,3 +1,4 @@
+using ServiceDesk.Application.DTOs.Dashboard;
 using ServiceDesk.Application.DTOs.Knowledge;
 using ServiceDesk.Domain.Entities;
 
@@ -15,6 +16,7 @@ public class HomeViewModel
     public List<IncidentDraft> UserTickets { get; set; } = new();
     public List<IncidentDraft> AllTickets { get; set; } = new();
     public List<ConversationSession> AllChatHistory { get; set; } = new();
+    public AnalystDashboardMetrics AnalystMetrics { get; set; } = new();
     public Dictionary<string, int> EmployeeTicketStats { get; set; } = new();
     public List<AuditLog> AuditLogs { get; set; } = new();
 }
