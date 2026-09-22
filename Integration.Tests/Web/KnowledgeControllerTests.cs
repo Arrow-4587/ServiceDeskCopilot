@@ -120,5 +120,9 @@ public class KnowledgeControllerTests
             var detail = new KnowledgeDocumentDetailDto(doc, $"<h1>{doc.DocumentName}</h1><p>{doc.Content}</p>");
             return Task.FromResult<KnowledgeDocumentDetailDto?>(detail);
         }
+
+        public void InvalidateCache()
+        {
+        }
     }
 }

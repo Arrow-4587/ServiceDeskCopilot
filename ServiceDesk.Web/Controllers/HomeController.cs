@@ -59,7 +59,9 @@ namespace ServiceDesk.Web.Controllers
                     .ThenBy(u => u.Username)
                     .ToListAsync();
 
-                model.UserChatHistory = (await _conversationRepository.GetByUserIdAsync(userId)).ToList();
+                var allConversations = await _conversationRepository.GetAllAsync();
+                model.AllChatHistory = allConversations.OrderByDescending(c => c.StartedAt).ToList();
+                model.UserChatHistory = (await _conversationRepository.GetByUserIdAsync(userId)).OrderByDescending(c => c.StartedAt).ToList();
 
                 var allTickets = await _dbContext.IncidentDrafts.AsNoTracking().ToListAsync();
                 var userDict = model.RegisteredUsers.ToDictionary(u => u.Id, u => u.Username);
@@ -91,11 +93,12 @@ namespace ServiceDesk.Web.Controllers
                     .ToListAsync();
 
                 var allConversations = await _conversationRepository.GetAllAsync();
-                model.AllChatHistory = allConversations.Where(c => endUserIds.Contains(c.UserId)).ToList();
+                model.AllChatHistory = allConversations.Where(c => endUserIds.Contains(c.UserId)).OrderByDescending(c => c.StartedAt).ToList();
+                model.UserChatHistory = (await _conversationRepository.GetByUserIdAsync(userId)).OrderByDescending(c => c.StartedAt).ToList();
             }
             else // Employee or Manager
             {
-                model.UserChatHistory = (await _conversationRepository.GetByUserIdAsync(userId)).ToList();
+                model.UserChatHistory = (await _conversationRepository.GetByUserIdAsync(userId)).OrderByDescending(c => c.StartedAt).ToList();
                 model.UserTickets = await _dbContext.IncidentDrafts.AsNoTracking().Where(i => i.UserId == userId).ToListAsync();
             }
 

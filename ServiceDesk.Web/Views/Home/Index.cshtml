@@ -31,9 +31,6 @@
             <button type="button" id="btnHomeReportIssue" class="btn btn-sm btn-outline-primary rounded-3 px-3 py-2 fw-semibold">
                 <i class="bi bi-plus-circle me-1"></i> Report an Issue
             </button>
-            <button type="button" id="btnLaunchCopilotHome" class="btn btn-sm btn-gradient rounded-3 px-3 py-2 fw-semibold">
-                <i class="bi bi-stars me-1"></i> Ask Copilot
-            </button>
         </div>
     </div>
 
@@ -72,17 +69,6 @@
                     <div class="stat-label">Audit Logs</div>
                     <div class="stat-value">@Model.AuditLogs.Count</div>
                     <a asp-controller="Admin" asp-action="Index" class="stat-link">Audit Trail &rarr;</a>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-card-accent" style="background:var(--success);"></div>
-                <div class="stat-card-icon" style="background:rgba(16,185,129,0.12);color:var(--success);">
-                    <i class="bi bi-hdd-network-fill"></i>
-                </div>
-                <div class="stat-card-body">
-                    <div class="stat-label">System Health</div>
-                    <div class="stat-value">100%</div>
-                    <a asp-controller="Status" asp-action="Index" class="stat-link">Service Health &rarr;</a>
                 </div>
             </div>
         }
@@ -232,72 +218,75 @@
     <!-- ─── ROLE-SPECIFIC SNAPSHOT PANELS ─── -->
     <div class="row g-4 mb-4">
         
-        <!-- Left Panel: Recent Incidents Preview -->
-        <div class="col-lg-7">
-            <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border:1px solid var(--border-soft) !important;">
-                <div class="card-header bg-transparent py-3 px-4 d-flex align-items-center justify-content-between border-bottom" style="border-color:var(--border-soft) !important;">
-                    <h5 class="mb-0 fw-bold" style="color:var(--text-heading);font-size:1.05rem;">
-                        <i class="bi bi-lightning-charge-fill me-2 text-warning"></i>
-                        @(isAnalyst ? "Recent Triage Queue" : isAdmin ? "Employee Ticket Activity" : "My Recent Incidents")
-                    </h5>
-                    <a asp-controller="Incident" asp-action="Index" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" style="font-size:0.83rem;color:var(--brand-blue);">
-                        View All &rarr;
-                    </a>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="font-size:0.875rem;">
-                        <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;">
-                            <tr>
-                                <th class="ps-4">Title</th>
-                                <th>Priority</th>
-                                <th>Status</th>
-                                <th class="text-end pe-4">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @{
-                                var ticketsToShow = isAnalyst ? Model.AllTickets.Take(5) : isAdmin ? Model.AllTickets.Take(5) : Model.UserTickets.Take(5);
-                            }
-                            @foreach (var ticket in ticketsToShow)
-                            {
+        @if (!isAdmin)
+        {
+            <!-- Left Panel: Recent Incidents Preview -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border:1px solid var(--border-soft) !important;">
+                    <div class="card-header bg-transparent py-3 px-4 d-flex align-items-center justify-content-between border-bottom" style="border-color:var(--border-soft) !important;">
+                        <h5 class="mb-0 fw-bold" style="color:var(--text-heading);font-size:1.05rem;">
+                            <i class="bi bi-lightning-charge-fill me-2 text-warning"></i>
+                            @(isAnalyst ? "Recent Triage Queue" : "My Recent Incidents")
+                        </h5>
+                        <a asp-controller="Incident" asp-action="Index" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" style="font-size:0.83rem;color:var(--brand-blue);">
+                            View All &rarr;
+                        </a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="font-size:0.875rem;">
+                            <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;">
                                 <tr>
-                                    <td class="ps-4 fw-semibold text-truncate" style="max-width:260px;color:var(--text-heading);">
-                                        @ticket.Title
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
-                                            @ticket.ComputedPriority
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill">
-                                            @ticket.Status
-                                        </span>
-                                    </td>
-                                    <td class="text-end pe-4">
-                                        <a href="@Url.Action("Details", "Incident", new { id = ticket.Id })" class="btn btn-sm btn-outline-primary rounded-3 py-1 px-3">
-                                            Details
-                                        </a>
-                                    </td>
+                                    <th class="ps-4">Title</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th class="text-end pe-4">Action</th>
                                 </tr>
-                            }
-                            @if (!ticketsToShow.Any())
-                            {
-                                <tr>
-                                    <td colspan="4" class="ps-4 text-muted py-4 text-center">
-                                        <i class="bi bi-inbox fs-4 d-block mb-1 opacity-50"></i>
-                                        No recent incidents found.
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var ticketsToShow = isAnalyst ? Model.AllTickets.Take(5) : Model.UserTickets.Take(5);
+                                }
+                                @foreach (var ticket in ticketsToShow)
+                                {
+                                    <tr>
+                                        <td class="ps-4 fw-semibold text-truncate" style="max-width:260px;color:var(--text-heading);">
+                                            @ticket.Title
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
+                                                @ticket.ComputedPriority
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill">
+                                                @ticket.Status
+                                            </span>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <a href="@Url.Action("Details", "Incident", new { id = ticket.Id })" class="btn btn-sm btn-outline-primary rounded-3 py-1 px-3">
+                                                Details
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                                @if (!ticketsToShow.Any())
+                                {
+                                    <tr>
+                                        <td colspan="4" class="ps-4 text-muted py-4 text-center">
+                                            <i class="bi bi-inbox fs-4 d-block mb-1 opacity-50"></i>
+                                            No recent incidents found.
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+        }
 
-        <!-- Right Panel: Recent Conversations Preview -->
-        <div class="col-lg-5">
+        <!-- Recent Conversations Preview -->
+        <div class="@(isAdmin ? "col-12" : "col-lg-5")">
             <div class="card border-0 shadow-sm rounded-4 h-100" style="background:var(--bg-surface); border:1px solid var(--border-soft) !important;">
                 <div class="card-header bg-transparent py-3 px-4 d-flex align-items-center justify-content-between border-bottom" style="border-color:var(--border-soft) !important;">
                     <h5 class="mb-0 fw-bold" style="color:var(--text-heading);font-size:1.05rem;">
@@ -310,22 +299,31 @@
                 </div>
                 <div class="list-group list-group-flush">
                     @{
-                        var chatsToShow = isAnalyst ? Model.AllChatHistory.Take(5) : Model.UserChatHistory.Take(5);
+                        var rawChats = (isAdmin || isAnalyst) 
+                            ? (Model.AllChatHistory ?? Model.UserChatHistory ?? new List<ServiceDesk.Domain.Entities.ConversationSession>())
+                            : (Model.UserChatHistory ?? new List<ServiceDesk.Domain.Entities.ConversationSession>());
+                        var chatsToShow = rawChats.OrderByDescending(c => c.StartedAt).Take(5).ToList();
                     }
                     @foreach (var chat in chatsToShow)
                     {
+                        var firstUserMsg = chat.Messages?.FirstOrDefault(m => m.SenderRole.Equals("User", StringComparison.OrdinalIgnoreCase))?.Content
+                            ?? chat.Messages?.FirstOrDefault()?.Content
+                            ?? "Copilot Session";
+                        var fullMsgTitle = firstUserMsg.Trim();
+                        var displayTitle = fullMsgTitle.Length > 48 ? fullMsgTitle.Substring(0, 45) + "..." : fullMsgTitle;
+
                         <div class="list-group-item bg-transparent px-4 py-3 d-flex align-items-center justify-content-between gap-2 border-bottom" style="border-color:var(--border-soft) !important;">
                             <div class="min-w-0">
-                                <div class="fw-semibold text-truncate small mb-1" style="color:var(--text-heading);">
-                                    <i class="bi bi-chat-text me-1 text-primary"></i> Copilot Session
+                                <div class="fw-semibold text-truncate small mb-1" style="color:var(--text-heading);" title="@fullMsgTitle">
+                                    <i class="bi bi-chat-text me-1 text-primary"></i> @displayTitle
                                 </div>
                                 <div class="text-muted small" style="font-size:0.75rem;">
                                     <i class="bi bi-clock me-1"></i>@chat.StartedAt.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-3 py-1 btn-open-copilot-session" data-session-id="@chat.Id">
+                            <a href="@Url.Action("Index", "Chat", new { conversationId = chat.Id })" class="btn btn-sm btn-outline-secondary rounded-3 px-3 py-1">
                                 Open
-                            </button>
+                            </a>
                         </div>
                     }
                     @if (!chatsToShow.Any())
@@ -340,34 +338,12 @@
         </div>
     </div>
 
-    <!-- ─── KNOWLEDGE BASE SHORTCUTS ─── -->
-    <div class="mt-2">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="fw-bold mb-0" style="color:var(--text-heading);font-size:1.1rem;">
-                <i class="bi bi-journal-bookmark-fill me-2" style="color:var(--accent-violet);"></i>Knowledge Base Shortcuts
-            </h5>
-            <a asp-controller="Knowledge" asp-action="Index" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" style="font-size:0.85rem;color:var(--brand-blue);">
-                Browse Knowledge Base &rarr;
-            </a>
-        </div>
-        @await Html.PartialAsync("_KnowledgeBasePartial", Model.KnowledgeDocuments)
-    </div>
-
 </div>
 
 @section Scripts {
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const btnAskCopilot = document.getElementById('btnLaunchCopilotHome');
         const btnReportIssue = document.getElementById('btnHomeReportIssue');
-
-        if (btnAskCopilot) {
-            btnAskCopilot.addEventListener('click', function() {
-                if (typeof window.submitCopilotMessage === 'function') {
-                    window.submitCopilotMessage('');
-                }
-            });
-        }
 
         if (btnReportIssue) {
             btnReportIssue.addEventListener('click', function() {
@@ -394,17 +370,6 @@
                 });
             });
         }
-
-        document.querySelectorAll('.btn-open-copilot-session').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const sessId = this.getAttribute('data-session-id');
-                const widgetConvId = document.getElementById('widgetConversationId');
-                if (widgetConvId) widgetConvId.value = sessId;
-                if (typeof window.submitCopilotMessage === 'function') {
-                    window.submitCopilotMessage('');
-                }
-            });
-        });
     });
 </script>
 }

@@ -164,14 +164,7 @@
                     <span>@ViewData["Title"]</span>
                 </div>
 
-                <!-- Global Search Input -->
-                <div class="topbar-search-wrap">
-                    <i class="bi bi-search topbar-search-icon"></i>
-                    <input type="search" class="topbar-search-input" placeholder="Search incidents, knowledge, services..." id="globalTopSearch" />
-                </div>
-
                 <div class="topbar-actions">
-                    <span class="system-pill" title="All core IT services are operational"><span class="online-dot"></span> All systems operational</span>
                     <button type="button" class="topbar-icon theme-toggle" id="themeToggleTop" title="Toggle theme" aria-label="Toggle theme"><i class="bi bi-moon-stars-fill"></i></button>
                 </div>
             </header>
@@ -186,6 +179,13 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 
 </body>

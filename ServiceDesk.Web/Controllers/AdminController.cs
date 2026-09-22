@@ -14,12 +14,18 @@ public class AdminController : Controller
     private readonly ApplicationDbContext _dbContext;
     private readonly IAuditLogger _auditLogger;
     private readonly IUserContext _userContext;
+    private readonly IKnowledgeBaseService? _knowledgeBaseService;
 
-    public AdminController(ApplicationDbContext dbContext, IAuditLogger auditLogger, IUserContext userContext)
+    public AdminController(
+        ApplicationDbContext dbContext,
+        IAuditLogger auditLogger,
+        IUserContext userContext,
+        IKnowledgeBaseService? knowledgeBaseService = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        _knowledgeBaseService = knowledgeBaseService;
     }
 
     [HttpGet]
@@ -30,10 +36,25 @@ public class AdminController : Controller
         var auditLogs = await _dbContext.AuditLogs.AsNoTracking().OrderByDescending(x => x.Timestamp).Take(100).ToListAsync(cancellationToken);
         var configs = await _dbContext.AdminConfigs.AsNoTracking().ToListAsync(cancellationToken);
 
+        ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto[] approvedDocs = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
+        if (_knowledgeBaseService != null)
+        {
+            try
+            {
+                var docs = await _knowledgeBaseService.GetApprovedDocumentsAsync(cancellationToken);
+                approvedDocs = docs.ToArray();
+            }
+            catch
+            {
+                // Fallback to empty list if source store is temporarily unavailable
+            }
+        }
+
         ViewBag.Prompts = prompts;
         ViewBag.Tools = tools;
         ViewBag.AuditLogs = auditLogs;
         ViewBag.Configs = configs;
+        ViewBag.ApprovedDocs = approvedDocs;
 
         return View();
     }

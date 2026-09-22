@@ -122,4 +122,44 @@ public class LocalFileKnowledgeSourceStore : IKnowledgeSourceStore
 
         return (docName, version, section, page, approved, active, body);
     }
+
+    public async Task<KnowledgeDocumentDto> UploadDocumentAsync(string fileName, Stream contentStream, string contentType = "text/markdown", CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(fileName)) throw new ArgumentException("File name cannot be empty.", nameof(fileName));
+        if (contentStream == null) throw new ArgumentNullException(nameof(contentStream));
+
+        if (!Directory.Exists(_knowledgeFolder))
+        {
+            Directory.CreateDirectory(_knowledgeFolder);
+        }
+
+        var destinationPath = Path.Combine(_knowledgeFolder, fileName);
+        contentStream.Position = 0;
+
+        using (var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            await contentStream.CopyToAsync(fileStream, cancellationToken);
+        }
+
+        contentStream.Position = 0;
+        using var reader = new StreamReader(contentStream, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+        var content = await reader.ReadToEndAsync(cancellationToken);
+
+        var (parsedName, version, parsedSection, page, approved, active, body) = ParseFrontmatter(fileName, content);
+        var effectiveTitle = parsedName;
+        var effectiveSection = parsedSection;
+
+        return new KnowledgeDocumentDto(
+            Id: Path.GetFileNameWithoutExtension(fileName),
+            DocumentName: effectiveTitle,
+            Version: version,
+            Section: effectiveSection,
+            Page: page,
+            Content: body,
+            Approved: approved,
+            Active: active,
+            BlobPath: destinationPath,
+            LastModified: DateTime.UtcNow
+        );
+    }
 }

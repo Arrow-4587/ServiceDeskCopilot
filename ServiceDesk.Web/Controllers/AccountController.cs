@@ -25,8 +25,16 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {
+        // If user is already authenticated (via valid persistent session token), redirect to home
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                return Redirect(returnUrl);
+            return RedirectToAction("Index", "Home");
+        }
+
         ViewData["ReturnUrl"] = returnUrl;
-        return View(new LoginViewModel { ReturnUrl = returnUrl });
+        return View(new LoginViewModel { ReturnUrl = returnUrl, RememberMe = false });
     }
 
     [HttpPost]
@@ -53,16 +61,19 @@ public class AccountController : Controller
         };
 
         var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+        // Secure token-based session persistence using ASP.NET Core Cookie Auth
         var authProperties = new AuthenticationProperties
         {
             IsPersistent = model.RememberMe,
-            ExpiresUtc = model.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : DateTimeOffset.UtcNow.AddHours(8)
+            ExpiresUtc = model.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : (DateTimeOffset?)null,
+            AllowRefresh = true
         };
 
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity), authProperties);
 
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
-        await _auditLogger.LogActionAsync("UserLogin", user.Username, user.Role.ToString(), $"User authenticated successfully ({user.Email})", ip);
+        await _auditLogger.LogActionAsync("UserLogin", user.Username, user.Role.ToString(), $"User authenticated successfully (RememberMe={model.RememberMe})", ip);
 
         if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
             return Redirect(model.ReturnUrl);
@@ -80,7 +91,11 @@ public class AccountController : Controller
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
 
         await _auditLogger.LogActionAsync("UserLogout", username, role, "User logged out of session", ip);
+
+        // Completely revoke persistent authentication ticket and clear cookies/session
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        Response.Cookies.Delete("ServiceDeskCopilot.Auth");
+
         return RedirectToAction("Login", "Account");
     }
 

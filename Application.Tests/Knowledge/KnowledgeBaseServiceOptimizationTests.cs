@@ -50,5 +50,12 @@ public class KnowledgeBaseServiceOptimizationTests
         {
             return Task.FromResult<Stream?>(null);
         }
+
+        public Task<KnowledgeDocumentDto> UploadDocumentAsync(string fileName, Stream contentStream, string contentType = "text/markdown", CancellationToken cancellationToken = default)
+        {
+            var doc = new KnowledgeDocumentDto(fileName, fileName, "1.0", "General", 1, string.Empty, true, true, $"blob/{fileName}", DateTime.UtcNow);
+            Documents.Add(doc);
+            return Task.FromResult(doc);
+        }
     }
 }

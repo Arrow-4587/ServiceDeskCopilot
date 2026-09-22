@@ -107,5 +107,41 @@ public class KnowledgeBaseServiceTests
             }
             return Task.FromResult<Stream?>(null);
         }
+
+        public Task<KnowledgeDocumentDto> UploadDocumentAsync(string fileName, Stream contentStream, string contentType = "text/markdown", CancellationToken cancellationToken = default)
+        {
+            if (ShouldThrowException)
+            {
+                throw new InvalidOperationException("Azure Blob Storage container is unavailable.");
+            }
+            var doc = new KnowledgeDocumentDto(fileName, fileName, "1.0", "General", 1, string.Empty, true, true, $"blob/{fileName}", DateTime.UtcNow);
+            Documents.Add(doc);
+            return Task.FromResult(doc);
+        }
+    }
+
+    [Test]
+    public async Task KnowledgeBaseService_InvalidateCache_ClearsCachedDocuments()
+    {
+        using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var cachingService = new KnowledgeBaseService(_fakeStore, NullLogger<KnowledgeBaseService>.Instance, memoryCache);
+
+        _fakeStore.Documents = new List<KnowledgeDocumentDto>
+        {
+            new("doc1", "Doc 1", "1.0", "Sec", 1, "Content", true, true, "blob/doc1.md", DateTime.UtcNow)
+        };
+
+        var initialDocs = await cachingService.GetApprovedDocumentsAsync();
+        Assert.That(initialDocs.Count, Is.EqualTo(1));
+
+        _fakeStore.Documents.Add(new("doc2", "Doc 2", "1.0", "Sec", 1, "Content 2", true, true, "blob/doc2.md", DateTime.UtcNow));
+
+        var cachedDocs = await cachingService.GetApprovedDocumentsAsync();
+        Assert.That(cachedDocs.Count, Is.EqualTo(1));
+
+        cachingService.InvalidateCache();
+
+        var refreshedDocs = await cachingService.GetApprovedDocumentsAsync();
+        Assert.That(refreshedDocs.Count, Is.EqualTo(2));
     }
 }

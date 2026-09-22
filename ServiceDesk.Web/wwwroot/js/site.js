@@ -408,7 +408,19 @@
     }
 
     TablePaginator.prototype.getItems = function () {
-        return Array.from(this.container.querySelectorAll(this.options.itemSelector));
+        if (this.container.tagName === 'TABLE') {
+            return Array.from(this.container.querySelectorAll('tbody > tr:not(.no-paginate)'));
+        }
+        if (this.options.itemSelector && this.options.itemSelector !== '> *:not(.no-paginate)') {
+            try {
+                return Array.from(this.container.querySelectorAll(this.options.itemSelector));
+            } catch (e) {
+                // Ignore selector error and fall back to children
+            }
+        }
+        return Array.from(this.container.children).filter(function (child) {
+            return !child.classList.contains('no-paginate') && !child.classList.contains('table-pagination-wrapper');
+        });
     };
 
     TablePaginator.prototype.update = function (resetPage) {
@@ -460,11 +472,15 @@
         var self = this;
 
         if (!this.controlsEl) {
-            this.controlsEl = document.createElement('div');
-            this.controlsEl.className = this.options.wrapperClass + ' d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 pb-2 px-3 border-top';
-
             var parent = this.container.closest('.table-responsive') || this.container.parentElement || this.container;
-            parent.parentElement.insertBefore(this.controlsEl, parent.nextSibling);
+            var existing = parent.parentElement ? parent.parentElement.querySelector('.' + this.options.wrapperClass) : null;
+            if (existing) {
+                this.controlsEl = existing;
+            } else {
+                this.controlsEl = document.createElement('div');
+                this.controlsEl.className = this.options.wrapperClass + ' d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 pb-2 px-3 border-top';
+                parent.parentElement.insertBefore(this.controlsEl, parent.nextSibling);
+            }
         }
 
         if (totalItems === 0) {
@@ -880,24 +896,75 @@
         if (!gridContainer) return;
 
         function applyFilters() {
-            var q = (searchInput ? searchInput.value : '').toLowerCase().trim();
+            var rawQ = (searchInput ? searchInput.value : '').toLowerCase().trim();
             var cat = (catFilter ? catFilter.value : '').toLowerCase().trim();
 
-            var cards = gridContainer.querySelectorAll('.kb-card-col');
+            var cards = Array.from(gridContainer.querySelectorAll('.kb-card-col'));
+            if (cards.length === 0) return;
+
+            var searchTerms = rawQ ? rawQ.split(/\s+/).filter(Boolean) : [];
+
+            function getCardMetaText(card) {
+                var title = (card.getAttribute('data-title') || '').toLowerCase();
+                var id = (card.getAttribute('data-id') || '').toLowerCase();
+                var section = (card.getAttribute('data-section') || '').toLowerCase();
+                var combined = title + ' ' + id + ' ' + section;
+                var normalized = combined.replace(/[-_&]/g, ' ') + ' ' + combined.replace(/[-_&]/g, '');
+                return combined + ' ' + normalized;
+            }
+
+            function getCardContentText(card) {
+                var content = (card.getAttribute('data-content') || '').toLowerCase();
+                var cardText = card.textContent.toLowerCase();
+                return content + ' ' + cardText;
+            }
+
+            // If user typed search terms, check if any card matches in document name/id/section
+            var hasPrimaryMatches = false;
+            if (searchTerms.length > 0) {
+                hasPrimaryMatches = cards.some(function (card) {
+                    var metaText = getCardMetaText(card);
+                    return searchTerms.every(function (term) {
+                        return metaText.includes(term);
+                    });
+                });
+            }
+
             var visibleCount = 0;
 
             cards.forEach(function (card) {
-                var title = (card.getAttribute('data-title') || '').toLowerCase();
                 var section = (card.getAttribute('data-section') || '').toLowerCase();
-                var cardText = card.textContent.toLowerCase();
+                var metaText = getCardMetaText(card);
+                var contentText = getCardContentText(card);
 
-                var matchesSearch = !q || title.includes(q) || section.includes(q) || cardText.includes(q);
-                var matchesCat = !cat || section === cat;
+                var matchesCat = true;
+                if (cat) {
+                    matchesCat = (section === cat || section.includes(cat) || cat.includes(section));
+                }
+
+                var matchesSearch = true;
+                if (searchTerms.length > 0) {
+                    if (hasPrimaryMatches) {
+                        // Strict document name/section/id matching so ONLY that particular document is displayed
+                        matchesSearch = searchTerms.every(function (term) {
+                            return metaText.includes(term);
+                        });
+                    } else {
+                        // Fallback to content if no title/name match
+                        matchesSearch = searchTerms.every(function (term) {
+                            return metaText.includes(term) || contentText.includes(term);
+                        });
+                    }
+                }
 
                 if (matchesSearch && matchesCat) {
+                    card.style.display = '';
+                    card.removeAttribute('data-filtered-out');
                     delete card.dataset.filteredOut;
                     visibleCount++;
                 } else {
+                    card.style.display = 'none';
+                    card.setAttribute('data-filtered-out', 'true');
                     card.dataset.filteredOut = 'true';
                 }
             });
@@ -911,7 +978,11 @@
             }
 
             if (gridContainer.tablePaginator) {
-                gridContainer.tablePaginator.update(true);
+                try {
+                    gridContainer.tablePaginator.update(true);
+                } catch (e) {
+                    console.warn('[TablePaginator] Update failed:', e);
+                }
             }
         }
 
@@ -967,6 +1038,75 @@
             }
         }
 
+        function createDocumentCardElement(doc) {
+            var section = doc.section || 'General';
+            var catColor = section === 'Security & Access' ? '#ef4444' :
+                           section === 'Network & Connectivity' ? '#3b82f6' :
+                           section === 'Devices & Hardware' ? '#f59e0b' : '#7c3aed';
+            var catIcon = section === 'Security & Access' ? 'bi-shield-lock-fill' :
+                          section === 'Network & Connectivity' ? 'bi-wifi' :
+                          section === 'Devices & Hardware' ? 'bi-pc-display' : 'bi-file-earmark-text-fill';
+
+            var updatedStr = '—';
+            if (doc.lastModified) {
+                var dt = new Date(doc.lastModified);
+                updatedStr = isNaN(dt.getTime()) ? doc.lastModified : dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+            }
+
+            var col = document.createElement('div');
+            col.className = 'col-12 col-md-6 col-lg-6 kb-card-col';
+            col.setAttribute('data-id', (doc.id || '').toLowerCase());
+            col.setAttribute('data-title', (doc.documentName || '').toLowerCase());
+            col.setAttribute('data-section', section.toLowerCase());
+            col.setAttribute('data-content', (doc.content || '').toLowerCase());
+
+            col.innerHTML = `
+                <div class="card h-100 kb-doc-card rounded-3 p-3 transition-all"
+                     style="background:var(--bg-surface);border:1px solid var(--border-soft);cursor:pointer;overflow:hidden;box-sizing:border-box;width:100%;"
+                     tabindex="0" role="button" aria-label="Open document ${doc.documentName}">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="rounded-3 p-2 d-flex align-items-center justify-content-center flex-shrink-0"
+                             style="background:rgba(124,58,237,0.1);width:42px;height:42px;">
+                            <i class="bi ${catIcon}" style="color:${catColor};font-size:1.25rem;"></i>
+                        </div>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="mb-1">
+                                <h6 class="fw-bold mb-0 text-truncate" style="color:var(--text-heading);font-size:0.95rem;line-height:1.35;" title="${doc.documentName}">
+                                    ${doc.documentName}
+                                </h6>
+                            </div>
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="font-size:0.78rem;color:var(--text-muted);">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill text-truncate" style="max-width:200px;">
+                                    <i class="bi bi-folder2-open me-1"></i>${section}
+                                </span>
+                                <span class="text-nowrap small"><i class="bi bi-clock me-1"></i>${updatedStr}</span>
+                            </div>
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2 pt-2 border-top" style="border-color:var(--border-soft) !important;">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill text-nowrap" style="font-size:0.7rem;">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Approved &amp; Active
+                                </span>
+                                <span class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold text-nowrap d-inline-flex align-items-center" style="font-size:0.8rem;color:var(--brand-blue, #2563eb);">
+                                    Read Document <i class="bi bi-arrow-right ms-1"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+            var cardEl = col.querySelector('.kb-doc-card');
+            cardEl.onclick = function () {
+                openKnowledgeDocument(doc.id, cardEl);
+            };
+            cardEl.onkeydown = function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openKnowledgeDocument(doc.id, cardEl);
+                }
+            };
+
+            return col;
+        }
+
         function renderDocuments(documents) {
             gridContainer.innerHTML = '';
 
@@ -991,70 +1131,7 @@
             }
 
             documents.forEach(function (doc) {
-                var section = doc.section || 'General';
-                var catColor = section === 'Security & Access' ? '#ef4444' :
-                               section === 'Network & Connectivity' ? '#3b82f6' :
-                               section === 'Devices & Hardware' ? '#f59e0b' : '#7c3aed';
-                var catIcon = section === 'Security & Access' ? 'bi-shield-lock-fill' :
-                              section === 'Network & Connectivity' ? 'bi-wifi' :
-                              section === 'Devices & Hardware' ? 'bi-pc-display' : 'bi-file-earmark-text-fill';
-
-                var updatedStr = '—';
-                if (doc.lastModified) {
-                    var dt = new Date(doc.lastModified);
-                    updatedStr = isNaN(dt.getTime()) ? doc.lastModified : dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-                }
-
-                var col = document.createElement('div');
-                col.className = 'col-12 col-md-6 col-lg-6 kb-card-col';
-                col.setAttribute('data-title', (doc.documentName || '').toLowerCase());
-                col.setAttribute('data-section', section.toLowerCase());
-
-                col.innerHTML = `
-                    <div class="card h-100 kb-doc-card rounded-3 p-3 transition-all"
-                         style="background:var(--bg-surface);border:1px solid var(--border-soft);cursor:pointer;"
-                         tabindex="0" role="button" aria-label="Open document ${doc.documentName}">
-                        <div class="d-flex align-items-start gap-3">
-                            <div class="rounded-3 p-2 d-flex align-items-center justify-content-center flex-shrink-0"
-                                 style="background:rgba(124,58,237,0.1);width:42px;height:42px;">
-                                <i class="bi ${catIcon}" style="color:${catColor};font-size:1.25rem;"></i>
-                            </div>
-                            <div class="flex-grow-1 min-w-0">
-                                <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
-                                    <h6 class="fw-bold mb-0 text-truncate" style="color:var(--text-heading);font-size:0.95rem;" title="${doc.documentName}">
-                                        ${doc.documentName}
-                                    </h6>
-                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:0.7rem;">v${doc.version || '1.0'}</span>
-                                </div>
-                                <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="font-size:0.78rem;color:var(--text-muted);">
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
-                                        <i class="bi bi-folder2-open me-1"></i>${section}
-                                    </span>
-                                    <span><i class="bi bi-clock me-1"></i>${updatedStr}</span>
-                                </div>
-                                <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top" style="border-color:var(--border-soft) !important;">
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size:0.7rem;">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Approved &amp; Active
-                                    </span>
-                                    <span class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" style="font-size:0.8rem;color:var(--brand-blue, #2563eb);">
-                                        Read Document <i class="bi bi-arrow-right ms-1"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
-
-                var cardEl = col.querySelector('.kb-doc-card');
-                cardEl.onclick = function (e) {
-                    openKnowledgeDocument(doc.id, cardEl);
-                };
-                cardEl.onkeydown = function (e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        openKnowledgeDocument(doc.id, cardEl);
-                    }
-                };
-
+                var col = createDocumentCardElement(doc);
                 gridContainer.appendChild(col);
             });
 
@@ -1064,8 +1141,241 @@
 
             // Initialize pagination (10 entries per page)
             if (window.TablePaginator) {
-                gridContainer.tablePaginator = new window.TablePaginator(gridContainer, { pageSize: 10 });
+                if (gridContainer.tablePaginator) {
+                    try {
+                        gridContainer.tablePaginator.update(true);
+                    } catch (e) {
+                        gridContainer.tablePaginator = new window.TablePaginator(gridContainer, { pageSize: 10 });
+                    }
+                } else {
+                    gridContainer.tablePaginator = new window.TablePaginator(gridContainer, { pageSize: 10 });
+                }
             }
+            applyFilters();
+        }
+
+        function initUploadModal() {
+            var uploadModalEl = document.getElementById('kbUploadModal');
+            var uploadForm = document.getElementById('kbUploadForm');
+            var fileInput = document.getElementById('kbFileInput');
+            var dropZone = document.getElementById('kbDropZone');
+            var filePreview = document.getElementById('kbFilePreview');
+            var fileNameDisplay = document.getElementById('kbFileNameDisplay');
+            var fileSizeDisplay = document.getElementById('kbFileSizeDisplay');
+            var removeFileBtn = document.getElementById('btnRemoveKbFile');
+            var titleInput = document.getElementById('kbDocumentTitleInput');
+            var alertBox = document.getElementById('kbUploadAlert');
+            var progressState = document.getElementById('kbUploadProgressState');
+            var submitBtn = document.getElementById('btnSubmitKbUpload');
+            var cancelBtn = document.getElementById('btnCancelKbUpload');
+            var closeBtn = document.getElementById('btnKbUploadClose');
+
+            if (!uploadForm || !fileInput) return;
+
+            function showAlert(msg, isSuccess) {
+                if (!alertBox) return;
+                alertBox.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-danger') + ' py-2 px-3 small d-flex align-items-center gap-2';
+                alertBox.innerHTML = (isSuccess ? '<i class="bi bi-check-circle-fill fs-5 text-success"></i>' : '<i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>') +
+                    '<div>' + msg + '</div>';
+                alertBox.style.display = 'flex';
+            }
+
+            function clearAlert() {
+                if (alertBox) {
+                    alertBox.style.display = 'none';
+                    alertBox.innerHTML = '';
+                }
+            }
+
+            function handleFile(file) {
+                clearAlert();
+                if (!file) return;
+
+                if (!file.name.toLowerCase().endsWith('.md')) {
+                    showAlert('Invalid file format. Please upload a Markdown (<strong>.md</strong>) document only.', false);
+                    resetFileSelection();
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    showAlert('File size exceeds the 10 MB limit.', false);
+                    resetFileSelection();
+                    return;
+                }
+
+                if (fileNameDisplay) fileNameDisplay.textContent = file.name;
+                if (fileSizeDisplay) fileSizeDisplay.textContent = (file.size / 1024).toFixed(1) + ' KB';
+
+                if (filePreview) filePreview.style.display = 'block';
+                if (dropZone) dropZone.style.display = 'none';
+                if (submitBtn) submitBtn.disabled = false;
+
+                if (titleInput && !titleInput.value) {
+                    var suggested = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+                    titleInput.value = suggested.replace(/\b\w/g, function (l) { return l.toUpperCase(); });
+                }
+            }
+
+            function resetFileSelection() {
+                fileInput.value = '';
+                if (filePreview) filePreview.style.display = 'none';
+                if (dropZone) dropZone.style.display = 'block';
+                if (submitBtn) submitBtn.disabled = true;
+            }
+
+            if (dropZone) {
+                dropZone.addEventListener('click', function () {
+                    fileInput.click();
+                });
+
+                ['dragenter', 'dragover'].forEach(function (eventName) {
+                    dropZone.addEventListener(eventName, function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.style.borderColor = 'var(--brand-blue, #2563eb)';
+                        dropZone.style.background = 'rgba(37,99,235,0.06)';
+                    });
+                });
+
+                ['dragleave', 'dragend', 'drop'].forEach(function (eventName) {
+                    dropZone.addEventListener(eventName, function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.style.borderColor = 'var(--border-soft)';
+                        dropZone.style.background = 'var(--bg-surface-alt, rgba(0,0,0,0.02))';
+                    });
+                });
+
+                dropZone.addEventListener('drop', function (e) {
+                    var dt = e.dataTransfer;
+                    var files = dt ? dt.files : null;
+                    if (files && files.length > 0) {
+                        fileInput.files = files;
+                        handleFile(files[0]);
+                    }
+                });
+            }
+
+            fileInput.addEventListener('change', function () {
+                if (fileInput.files && fileInput.files.length > 0) {
+                    handleFile(fileInput.files[0]);
+                } else {
+                    resetFileSelection();
+                }
+            });
+
+            if (removeFileBtn) {
+                removeFileBtn.addEventListener('click', function () {
+                    resetFileSelection();
+                    clearAlert();
+                });
+            }
+
+            uploadForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                clearAlert();
+
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    showAlert('Please select a Markdown (.md) document to upload.', false);
+                    return;
+                }
+
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Uploading...';
+                }
+                if (cancelBtn) cancelBtn.disabled = true;
+                if (closeBtn) closeBtn.disabled = true;
+                if (progressState) progressState.style.display = 'block';
+
+                var formData = new FormData(uploadForm);
+                var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+                var token = tokenEl ? tokenEl.value : '';
+
+                fetch('/Knowledge/UploadPolicyDocument', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token
+                    },
+                    body: formData
+                })
+                .then(function (res) {
+                    return res.json().then(function (data) {
+                        if (!res.ok) {
+                            throw new Error(data.message || 'Upload failed with HTTP ' + res.status);
+                        }
+                        return data;
+                    });
+                })
+                .then(function (data) {
+                    if (progressState) progressState.style.display = 'none';
+
+                    var successMsg = data.message || 'Policy document successfully uploaded and indexed.';
+                    if (data.chunksIndexed) {
+                        successMsg += ' (' + data.chunksIndexed + ' knowledge chunks indexed)';
+                    }
+                    showAlert(successMsg, true);
+
+                    if (data.document && gridContainer) {
+                        var newCol = createDocumentCardElement(data.document);
+                        gridContainer.insertBefore(newCol, gridContainer.firstChild);
+
+                        var sec = data.document.section;
+                        if (catFilter && sec) {
+                            var exists = Array.from(catFilter.options).some(function (opt) {
+                                return opt.value.toLowerCase() === sec.toLowerCase();
+                            });
+                            if (!exists) {
+                                var opt = document.createElement('option');
+                                opt.value = sec;
+                                opt.textContent = sec;
+                                catFilter.appendChild(opt);
+                            }
+                        }
+
+                        applyFilters();
+                    }
+
+                    uploadForm.reset();
+                    resetFileSelection();
+
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload &amp; Ingest';
+                    }
+                    if (cancelBtn) cancelBtn.disabled = false;
+                    if (closeBtn) closeBtn.disabled = false;
+
+                    setTimeout(function () {
+                        if (uploadModalEl && window.bootstrap && window.bootstrap.Modal) {
+                            var modalInstance = window.bootstrap.Modal.getInstance(uploadModalEl);
+                            if (modalInstance) modalInstance.hide();
+                        }
+                        clearAlert();
+                    }, 2500);
+                })
+                .catch(function (err) {
+                    console.error('[KnowledgeUpload] Error:', err);
+                    if (progressState) progressState.style.display = 'none';
+                    showAlert(err.message || 'An error occurred while uploading and ingesting the document.', false);
+
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload &amp; Ingest';
+                    }
+                    if (cancelBtn) cancelBtn.disabled = false;
+                    if (closeBtn) closeBtn.disabled = false;
+                });
+            });
+        }
+
+        initUploadModal();
+
+        var kbTabBtn = document.querySelector('button[data-bs-target="#kbTab"]');
+        if (kbTabBtn) {
+            kbTabBtn.addEventListener('shown.bs.tab', function () {
+                applyFilters();
+            });
         }
     }
 

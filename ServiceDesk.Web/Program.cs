@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceDesk.Application;
 using ServiceDesk.Application.Common.Interfaces;
@@ -31,7 +32,14 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["AzureOpenAI:Endpoint"]) ||
 }
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new ResponseCacheAttribute
+    {
+        NoStore = true,
+        Location = ResponseCacheLocation.None
+    });
+});
 builder.Services.AddHttpContextAccessor();
 
 // Register Clean Architecture Layer Services
@@ -49,7 +57,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/Account/AccessDenied";
         options.Cookie.Name = "ServiceDeskCopilot.Auth";
         options.Cookie.HttpOnly = true;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
     });
 
@@ -85,6 +95,15 @@ using (var scope = app.Services.CreateScope())
     await dbContext.Database.MigrateAsync();
     await DataSeeder.SeedAsync(dbContext);
 }
+
+// Anti-cache headers middleware to prevent browser-back navigation from displaying cached protected pages
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+    context.Response.Headers.Append("Pragma", "no-cache");
+    context.Response.Headers.Append("Expires", "0");
+    await next();
+});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

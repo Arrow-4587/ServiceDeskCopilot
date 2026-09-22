@@ -18,6 +18,13 @@
             <span id="kbCountBadge" class="badge rounded-pill px-3 py-1.5" style="background:var(--brand-blue-light, rgba(37,99,235,0.1));color:var(--brand-blue, #2563eb);border:1px solid var(--brand-blue, #2563eb);font-weight:600;font-size:0.8rem;">
                 @(hasInitialDocs ? initialDocs.Count : 0) Approved Documents
             </span>
+            @if (User.IsInRole("Administrator"))
+            {
+                <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm" id="btnOpenUploadModal" data-bs-toggle="modal" data-bs-target="#kbUploadModal" style="border-radius:8px;font-weight:600;">
+                    <i class="bi bi-cloud-arrow-up-fill"></i>
+                    <span>Upload Policy (.md)</span>
+                </button>
+            }
         </div>
     </div>
 
@@ -109,9 +116,9 @@
                         _ => "bi-file-earmark-text-fill"
                     };
 
-                    <div class="col-12 col-md-6 col-lg-6 kb-card-col" data-title="@doc.DocumentName.ToLower()" data-section="@doc.Section.ToLower()">
+                    <div class="col-12 col-md-6 col-lg-6 kb-card-col" data-id="@doc.Id.ToLower()" data-title="@doc.DocumentName.ToLower()" data-section="@doc.Section.ToLower()" data-content="@(doc.Content?.ToLower() ?? "")">
                         <div class="card h-100 kb-doc-card rounded-3 p-3 transition-all"
-                             style="background:var(--bg-surface);border:1px solid var(--border-soft);cursor:pointer;"
+                             style="background:var(--bg-surface);border:1px solid var(--border-soft);cursor:pointer;overflow:hidden;box-sizing:border-box;width:100%;"
                              onclick="window.openKnowledgeDocument('@doc.Id')">
                             <div class="d-flex align-items-start gap-3">
                                 <div class="rounded-3 p-2 d-flex align-items-center justify-content-center flex-shrink-0"
@@ -119,25 +126,24 @@
                                     <i class="bi @catIcon" style="color:@catColor;font-size:1.25rem;"></i>
                                 </div>
                                 <div class="flex-grow-1 min-w-0">
-                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
-                                        <h6 class="fw-bold mb-0 text-truncate" style="color:var(--text-heading);font-size:0.95rem;" title="@doc.DocumentName">
+                                    <div class="mb-1">
+                                        <h6 class="fw-bold mb-0 text-truncate" style="color:var(--text-heading);font-size:0.95rem;line-height:1.35;" title="@doc.DocumentName">
                                             @doc.DocumentName
                                         </h6>
-                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:0.7rem;">v@doc.Version</span>
                                     </div>
                                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2" style="font-size:0.78rem;color:var(--text-muted);">
-                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill text-truncate" style="max-width:200px;">
                                             <i class="bi bi-folder2-open me-1"></i>@doc.Section
                                         </span>
-                                        <span><i class="bi bi-clock me-1"></i>@doc.LastModified.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                                        <span class="text-nowrap small"><i class="bi bi-clock me-1"></i>@doc.LastModified.ToLocalTime().ToString("MMM dd, yyyy")</span>
                                     </div>
-                                    <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top" style="border-color:var(--border-soft) !important;">
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size:0.7rem;">
+                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2 pt-2 border-top" style="border-color:var(--border-soft) !important;">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill text-nowrap" style="font-size:0.7rem;">
                                             <i class="bi bi-check-circle-fill me-1"></i> Approved &amp; Active
                                         </span>
-                                        <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" style="font-size:0.8rem;color:var(--brand-blue, #2563eb);">
+                                        <span class="fw-semibold text-nowrap d-inline-flex align-items-center" style="font-size:0.8rem;color:var(--brand-blue, #2563eb);">
                                             Read Document <i class="bi bi-arrow-right ms-1"></i>
-                                        </button>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -152,3 +158,8 @@
 
 <!-- Modal Document Viewer Component -->
 @await Html.PartialAsync("_KnowledgeDocumentModal")
+
+@if (User.IsInRole("Administrator"))
+{
+    @await Html.PartialAsync("_KnowledgeDocumentUploadModal")
+}

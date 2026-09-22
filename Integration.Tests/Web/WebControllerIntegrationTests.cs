@@ -266,8 +266,7 @@ public class WebControllerIntegrationTests
     public async Task StatusController_Index_ReturnsViewResultWithServiceStatuses()
     {
         var statusReader = new FakeSystemStatusReader();
-        var knowledgeService = new FakeKnowledgeBaseService();
-        var controller = new StatusController(statusReader, knowledgeService, NullLogger<StatusController>.Instance);
+        var controller = new StatusController(statusReader, NullLogger<StatusController>.Instance);
 
         var result = await controller.Index(CancellationToken.None);
 
@@ -451,6 +450,10 @@ public class WebControllerIntegrationTests
         public Task<KnowledgeDocumentDetailDto?> GetDocumentDetailAsync(string id, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<KnowledgeDocumentDetailDto?>(null);
+        }
+
+        public void InvalidateCache()
+        {
         }
     }
 

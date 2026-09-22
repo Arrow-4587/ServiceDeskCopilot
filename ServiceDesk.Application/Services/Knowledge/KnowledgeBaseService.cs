@@ -97,4 +97,13 @@ public class KnowledgeBaseService : IKnowledgeBaseService
 
         return detail;
     }
+
+    public void InvalidateCache()
+    {
+        if (_cache != null)
+        {
+            _logger.LogInformation("[KnowledgeBaseService] Evicting approved documents memory cache after document upload/ingestion.");
+            _cache.Remove(ApprovedDocsCacheKey);
+        }
+    }
 }

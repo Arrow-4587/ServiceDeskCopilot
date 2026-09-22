@@ -1,55 +1,51 @@
 @model ServiceDesk.Web.Models.Account.LoginViewModel
 @{
-    ViewData["Title"] = "Sign In - IT Service Desk Copilot";
-    Layout = "_Layout";
+    ViewData["Title"] = "User Login";
+    Layout = "_LoginLayout";
 }
 
-<div class="container py-5">
-    <div class="row justify-content-center align-items-center" style="min-height: 70vh;">
-        <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="card-body p-4 p-sm-5">
-                    <div class="text-center mb-4">
-                        <div class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary bg-opacity-10 text-primary p-3 mb-3">
-                            <i class="bi bi-shield-lock-fill fs-2"></i>
-                        </div>
-                        <h4 class="fw-bold mb-1">Sign In</h4>
-                        <p class="small text-muted mb-0">Enter your credentials to access IT Service Desk</p>
+<div class="login-container">
+    <div class="login-card">
+        <h1 class="login-title">USER LOGIN</h1>
+
+        <form asp-action="Login" method="post" class="login-form">
+            <input type="hidden" asp-for="ReturnUrl" />
+            
+            <div asp-validation-summary="ModelOnly" class="login-validation-summary" role="alert"></div>
+
+            <div class="login-field-wrapper">
+                <div class="login-input-group">
+                    <div class="login-icon-badge login-icon-badge-left">
+                        <i class="bi bi-person text-dark fs-5" aria-hidden="true"></i>
                     </div>
-
-                    <form asp-action="Login" method="post">
-                        <input type="hidden" asp-for="ReturnUrl" />
-                        
-                        <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small rounded-3 mb-3" role="alert"></div>
-
-                        <div class="mb-3">
-                            <label asp-for="Email" class="form-label small fw-semibold text-body-secondary">Email Address</label>
-                            <input asp-for="Email" class="form-control form-control-lg fs-6" placeholder="name@company.com" />
-                            <span asp-validation-for="Email" class="text-danger small mt-1 d-block"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="Password" class="form-label small fw-semibold text-body-secondary">Password</label>
-                            <input asp-for="Password" type="password" class="form-control form-control-lg fs-6" placeholder="••••••••" />
-                            <span asp-validation-for="Password" class="text-danger small mt-1 d-block"></span>
-                        </div>
-
-                        <div class="mb-4">
-                            <div class="form-check">
-                                <input asp-for="RememberMe" class="form-check-input" type="checkbox" id="rememberMeCheck" />
-                                <label class="form-check-label small text-body-secondary" for="rememberMeCheck">
-                                    Remember me
-                                </label>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold rounded-3 shadow-sm">
-                            <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
-                        </button>
-                    </form>
+                    <input asp-for="Email" class="login-input" placeholder="Username" autocomplete="username" />
                 </div>
+                <span asp-validation-for="Email" class="login-field-error"></span>
             </div>
-        </div>
+
+            <div class="login-field-wrapper">
+                <div class="login-input-group">
+                    <input asp-for="Password" id="passwordInput" type="password" class="login-input login-input-password" placeholder="Password" autocomplete="current-password" />
+                    <button type="button" class="login-icon-badge login-icon-badge-right login-pwd-btn" id="togglePasswordBtn" title="Show password" aria-label="Show password">
+                        <i class="bi bi-eye-fill text-dark fs-5" id="togglePasswordIcon" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <span asp-validation-for="Password" class="login-field-error"></span>
+            </div>
+
+            <div class="login-remember-wrapper">
+                <label class="login-remember-label" for="rememberMeCheck">
+                    <input asp-for="RememberMe" class="login-remember-checkbox" type="checkbox" id="rememberMeCheck" />
+                    <span class="login-remember-custom-check">
+                        <i class="bi bi-check-lg"></i>
+                    </span>
+                    <span class="login-remember-text">Remember Me</span>
+                </label>
+            </div>
+
+            <button type="submit" class="login-submit-btn">
+                LOGIN
+            </button>
+        </form>
     </div>
 </div>
-
