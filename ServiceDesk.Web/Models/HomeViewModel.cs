@@ -19,6 +19,7 @@ public class HomeViewModel
     public AnalystDashboardMetrics AnalystMetrics { get; set; } = new();
     public Dictionary<string, int> EmployeeTicketStats { get; set; } = new();
     public List<AuditLog> AuditLogs { get; set; } = new();
+    public IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto> ServiceStatuses { get; set; } = Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
 }
 
 public class KnowledgeFileItem

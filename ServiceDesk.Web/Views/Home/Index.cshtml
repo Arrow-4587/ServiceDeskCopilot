@@ -23,7 +23,7 @@
                 Welcome back, @username
             </h2>
             <p class="text-muted small mb-0 mt-1">
-                Here is your operational snapshot for today.
+                @(isManager ? "Monitor incident workload, service health, and team priorities at a glance." : "Here is your operational snapshot for today.")
             </p>
         </div>
 
@@ -74,7 +74,58 @@
         }
         else if (isManager)
         {
-            <div class="stat-card">
+            var svcList = Model.ServiceStatuses ?? Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
+            bool hasSvc = svcList.Any();
+            bool mgrCritical = hasSvc && svcList.Any(s => !s.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase) && !s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase));
+            bool mgrDegraded = hasSvc && svcList.Any(s => s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase));
+            int mgrDegradedCount = hasSvc ? svcList.Count(s => s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase)) : 0;
+            int mgrCriticalCount = hasSvc ? svcList.Count(s => !s.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase) && !s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase)) : 0;
+
+            string mgrSvcLabel;
+            string mgrSvcAccent;
+            string mgrSvcIconBg;
+            string mgrSvcIconColor;
+            string mgrSvcIconClass;
+            string mgrSvcSummary;
+
+            if (!hasSvc)
+            {
+                mgrSvcLabel = "Unavailable";
+                mgrSvcAccent = "var(--text-muted)";
+                mgrSvcIconBg = "rgba(148,163,184,0.12)";
+                mgrSvcIconColor = "var(--text-muted)";
+                mgrSvcIconClass = "bi-exclamation-circle";
+                mgrSvcSummary = "Service status unavailable";
+            }
+            else if (mgrCritical)
+            {
+                mgrSvcLabel = "Outage";
+                mgrSvcAccent = "var(--danger)";
+                mgrSvcIconBg = "rgba(239,68,68,0.12)";
+                mgrSvcIconColor = "var(--danger)";
+                mgrSvcIconClass = "bi-exclamation-octagon-fill";
+                mgrSvcSummary = mgrCriticalCount == 1 ? "1 service outage" : $"{mgrCriticalCount} service outages";
+            }
+            else if (mgrDegraded)
+            {
+                mgrSvcLabel = "Degraded";
+                mgrSvcAccent = "var(--warning)";
+                mgrSvcIconBg = "rgba(217,119,6,0.12)";
+                mgrSvcIconColor = "var(--warning)";
+                mgrSvcIconClass = "bi-exclamation-triangle-fill";
+                mgrSvcSummary = mgrDegradedCount == 1 ? "1 service requires attention" : $"{mgrDegradedCount} services require attention";
+            }
+            else
+            {
+                mgrSvcLabel = "Healthy";
+                mgrSvcAccent = "var(--success)";
+                mgrSvcIconBg = "rgba(16,185,129,0.12)";
+                mgrSvcIconColor = "var(--success)";
+                mgrSvcIconClass = "bi-check-all";
+                mgrSvcSummary = "All services operational";
+            }
+
+            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Incident")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Incident")';}" tabindex="0" role="link" aria-label="Incident Volume: @Model.UserTickets.Count tickets. View Incidents.">
                 <div class="stat-card-accent" style="background:var(--brand-blue);"></div>
                 <div class="stat-card-icon" style="background:var(--brand-blue-light);color:var(--brand-blue);">
                     <i class="bi bi-bar-chart-line-fill"></i>
@@ -82,10 +133,10 @@
                 <div class="stat-card-body">
                     <div class="stat-label">Incident Volume</div>
                     <div class="stat-value">@Model.UserTickets.Count</div>
-                    <a asp-controller="Manager" asp-action="Index" class="stat-link">Manager Analytics &rarr;</a>
+                    <a asp-controller="Incident" asp-action="Index" class="stat-link" tabindex="-1">View Incidents &rarr;</a>
                 </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("History", "Chat")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("History", "Chat")';}" tabindex="0" role="link" aria-label="Active Conversations: @Model.UserChatHistory.Count. Open Chat History.">
                 <div class="stat-card-accent" style="background:var(--warning);"></div>
                 <div class="stat-card-icon" style="background:rgba(217,119,6,0.12);color:var(--warning);">
                     <i class="bi bi-clock-history"></i>
@@ -93,10 +144,10 @@
                 <div class="stat-card-body">
                     <div class="stat-label">Active Conversations</div>
                     <div class="stat-value">@Model.UserChatHistory.Count</div>
-                    <a asp-controller="Chat" asp-action="History" class="stat-link">Chat History &rarr;</a>
+                    <a asp-controller="Chat" asp-action="History" class="stat-link" tabindex="-1">Chat History &rarr;</a>
                 </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Manager")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Manager")';}" tabindex="0" role="link" aria-label="AI Accuracy: 97.2%. Open Agent Metrics.">
                 <div class="stat-card-accent" style="background:var(--accent-violet);"></div>
                 <div class="stat-card-icon" style="background:rgba(124,58,237,0.12);color:var(--accent-violet);">
                     <i class="bi bi-cpu-fill"></i>
@@ -104,18 +155,19 @@
                 <div class="stat-card-body">
                     <div class="stat-label">AI Accuracy</div>
                     <div class="stat-value">97.2%</div>
-                    <a asp-controller="Manager" asp-action="Index" class="stat-link">Agent Metrics &rarr;</a>
+                    <a asp-controller="Manager" asp-action="Index" class="stat-link" tabindex="-1">Agent Metrics &rarr;</a>
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-accent" style="background:var(--success);"></div>
-                <div class="stat-card-icon" style="background:rgba(16,185,129,0.12);color:var(--success);">
-                    <i class="bi bi-check-all"></i>
+            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Status")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Status")';}" tabindex="0" role="link" aria-label="Service Status: @mgrSvcLabel. @mgrSvcSummary. Open Service Health dashboard.">
+                <div class="stat-card-accent" style="background:@mgrSvcAccent;"></div>
+                <div class="stat-card-icon" style="background:@mgrSvcIconBg;color:@mgrSvcIconColor;">
+                    <i class="bi @mgrSvcIconClass"></i>
                 </div>
                 <div class="stat-card-body">
                     <div class="stat-label">Service Status</div>
-                    <div class="stat-value">Healthy</div>
-                    <a asp-controller="Status" asp-action="Index" class="stat-link">Service Health &rarr;</a>
+                    <div class="stat-value" style="font-size:1.35rem;">@mgrSvcLabel</div>
+                    <div class="small text-muted text-truncate" style="font-size:0.75rem;margin-top:2px;" title="@mgrSvcSummary">@mgrSvcSummary</div>
+                    <a asp-controller="Status" asp-action="Index" class="stat-link" tabindex="-1">Service Health &rarr;</a>
                 </div>
             </div>
         }

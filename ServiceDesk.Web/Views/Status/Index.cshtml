@@ -4,26 +4,29 @@
 }
 
 <div class="dashboard-page w-100">
-    <div class="mb-4">
-        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-            <div>
-                <h3 class="fw-bold mb-1">Service Health & System Status</h3>
-                <p class="text-muted mb-0 small">Live operational metrics, IT infrastructure health, and service availability feeds.</p>
-            </div>
-            <div>
-                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill shadow-sm">
-                    <i class="bi bi-broadcast me-1"></i> Live Monitoring Feed Active
-                </span>
-            </div>
+    <!-- Header Block aligned with Knowledge Base Page Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 pb-2 border-bottom gap-3" style="border-color:var(--border-soft) !important;">
+        <div>
+            <h3 class="fw-bold mb-1" style="color:var(--text-heading);letter-spacing:-0.3px;">
+                <i class="bi bi-activity text-primary me-2"></i> Service Health &amp; System Status
+            </h3>
+            <p class="small mb-0" style="color:var(--text-muted);">
+                Live operational metrics, IT infrastructure health, and service availability feeds.
+            </p>
+        </div>
+        <div>
+            <span class="badge rounded-pill px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5 status-badge-operational" style="font-weight:600;font-size:0.82rem;">
+                <i class="bi bi-broadcast"></i> Live Monitoring Feed Active
+            </span>
         </div>
     </div>
 
     @if (Model == null || !Model.Any())
     {
-        <div class="card border-0 shadow-sm p-5 text-center mb-4">
+        <div class="card border-0 shadow-sm p-5 text-center mb-4 status-card">
             <i class="bi bi-exclamation-triangle text-warning fs-1 mb-3 d-block opacity-75"></i>
-            <h5 class="fw-bold">No Service Adapters Connected</h5>
-            <p class="text-muted small mb-0">
+            <h5 class="fw-bold status-card-title">No Service Adapters Connected</h5>
+            <p class="small mb-0 status-card-desc">
                 System status monitoring service returned no active service status metrics.
             </p>
         </div>
@@ -36,27 +39,27 @@
                 bool isOperational = svc.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase);
                 bool isDegraded = svc.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase);
 
-                string borderTopClass = isOperational ? "border-success" : isDegraded ? "border-warning" : "border-danger";
-                string badgeClass = isOperational ? "bg-success bg-opacity-10 text-success border border-success border-opacity-25" : isDegraded ? "bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25" : "bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25";
+                string borderTopClass = isOperational ? "status-border-operational" : isDegraded ? "status-border-degraded" : "status-border-critical";
+                string badgeClass = isOperational ? "status-badge-operational" : isDegraded ? "status-badge-degraded" : "status-badge-critical";
                 string iconClass = isOperational ? "bi-check-circle-fill" : isDegraded ? "bi-exclamation-triangle-fill" : "bi-x-circle-fill";
 
                 <div class="col-md-6 col-lg-4">
-                    <div class="card border-0 shadow-sm h-100 border-top border-3 @borderTopClass">
+                    <div class="card status-card h-100 @borderTopClass">
                         <div class="card-body p-4 d-flex flex-column">
-                            <div class="d-flex align-items-center justify-content-between mb-3">
-                                <h5 class="fw-bold mb-0 text-body">@svc.ServiceName</h5>
-                                <span class="badge @badgeClass px-2.5 py-1 rounded-pill">
+                            <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                                <h5 class="fw-bold mb-0 status-card-title text-truncate" title="@svc.ServiceName">@svc.ServiceName</h5>
+                                <span class="badge @badgeClass px-2.5 py-1 rounded-pill text-nowrap" style="font-size:0.75rem;font-weight:600;">
                                     <i class="bi @iconClass me-1"></i> @svc.Status
                                 </span>
                             </div>
 
-                            <p class="text-muted small mb-4 flex-grow-1">
+                            <p class="small mb-4 flex-grow-1 status-card-desc">
                                 @svc.Description
                             </p>
 
-                            <div class="pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
-                                <span><i class="bi bi-clock me-1"></i> Last Checked</span>
-                                <span class="fw-medium font-monospace">@svc.LastChecked.ToLocalTime().ToString("T")</span>
+                            <div class="pt-3 border-top d-flex align-items-center justify-content-between small status-card-footer">
+                                <span><i class="bi bi-clock me-1.5"></i> Last Checked</span>
+                                <span class="fw-semibold font-monospace status-card-time">@svc.LastChecked.ToLocalTime().ToString("T")</span>
                             </div>
                         </div>
                     </div>
@@ -65,5 +68,6 @@
         </div>
     }
 </div>
+
 
 

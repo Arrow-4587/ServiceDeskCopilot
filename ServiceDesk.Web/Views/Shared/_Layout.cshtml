@@ -108,9 +108,9 @@
                 @if (isAdmin)
                 {
                     <div class="sidebar-section-label mt-3">Administration</div>
-                    <a class="nav-btn @adminActive" id="nav-admin" title="Administration" asp-controller="Admin" asp-action="Index">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-                        <span>Administration</span>
+                    <a class="nav-btn @adminActive" id="nav-audit-log" title="Audit Log" asp-controller="Admin" asp-action="AuditLog">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span>Audit Log</span>
                     </a>
                 }
             </nav>
@@ -157,17 +157,6 @@
 
         <!-- MAIN AREA -->
         <div class="main-area">
-            <header class="app-topbar">
-                <div class="topbar-context">
-                    <span class="eyebrow">IT OPERATIONS</span>
-                    <span class="topbar-divider"></span>
-                    <span>@ViewData["Title"]</span>
-                </div>
-
-                <div class="topbar-actions">
-                    <button type="button" class="topbar-icon theme-toggle" id="themeToggleTop" title="Toggle theme" aria-label="Toggle theme"><i class="bi bi-moon-stars-fill"></i></button>
-                </div>
-            </header>
             @RenderBody()
         </div>
 

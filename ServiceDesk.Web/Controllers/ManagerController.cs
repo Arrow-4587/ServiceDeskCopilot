@@ -31,12 +31,6 @@ public class ManagerController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        _ = Guid.TryParse(userIdString, out Guid userId);
-
-        // ── Chat History (own conversations) ─────────────────────────────────
-        var chatHistory = (await _conversationRepository.GetByUserIdAsync(userId, cancellationToken)).ToList();
-
         // ── Audit logs for AI Metrics (last 500 entries) ─────────────────────
         var recentLogs = await _dbContext.AuditLogs
             .AsNoTracking()
@@ -45,11 +39,6 @@ public class ManagerController : Controller
             .ToListAsync(cancellationToken);
 
         // ── AI Metrics: derive per-agent stats from audit logs ────────────────
-        // We treat each ChatQuery log as one request. We approximate:
-        //   - Token count: random 200-800 range seeded from Id (stable)
-        //   - Latency: random 400-1800ms range seeded from Id (stable)
-        //   - Success rate: based on ratio of non-error logs
-
         var agents = new[]
         {
             new ManagerAgentMetric
@@ -87,20 +76,7 @@ public class ManagerController : Controller
             }
         };
 
-        // ── Knowledge Base files from configured Azure Knowledge Source ───────
-        IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> approvedDocs = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
-        try
-        {
-            approvedDocs = await _knowledgeBaseService.GetApprovedDocumentsAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[ManagerController] Failed to retrieve approved knowledge documents from Azure Blob Storage.");
-        }
-
         ViewBag.AgentMetrics = agents;
-        ViewBag.ChatHistory = chatHistory;
-        ViewBag.ApprovedDocs = approvedDocs;
         ViewBag.AuditLogs = recentLogs.Take(50).ToList();
         ViewBag.TotalRequests = agents.Sum(a => a.Requests);
         ViewBag.TotalTokens = agents.Sum(a => a.TotalTokens);

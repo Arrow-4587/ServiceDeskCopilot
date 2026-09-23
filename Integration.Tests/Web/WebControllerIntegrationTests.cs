@@ -138,6 +138,58 @@ public class WebControllerIntegrationTests
     }
 
     [Test]
+    public async Task ChatController_Index_Manager_AccessingOtherUserConversation_ReturnsForbidResult()
+    {
+        _userContext.Role = UserRole.Manager;
+        var otherUserId = Guid.NewGuid();
+        var session = new ConversationSession(otherUserId);
+        await _conversationRepository.AddAsync(session);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.Index(session.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ForbidResult>());
+    }
+
+    [Test]
+    public async Task ChatController_GetConversationApi_OtherUserManager_ReturnsForbidResult()
+    {
+        _userContext.Role = UserRole.Manager;
+        var otherUserId = Guid.NewGuid();
+        var session = new ConversationSession(otherUserId);
+        await _conversationRepository.AddAsync(session);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.GetConversationApi(session.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ForbidResult>());
+    }
+
+    [Test]
     public async Task ChatController_GetConversationApi_ValidUser_ReturnsJsonResultWithMessages()
     {
         var session = new ConversationSession(_userContext.UserId);
@@ -275,6 +327,60 @@ public class WebControllerIntegrationTests
         Assert.That(viewResult.Model, Is.InstanceOf<IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>>());
         var statuses = (IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>)viewResult.Model!;
         Assert.That(statuses.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void AdminController_Index_RedirectsToAuditLog()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+        var auditLogger = new FakeAuditLogger();
+
+        var controller = new AdminController(dbContext, auditLogger, _userContext);
+
+        var result = controller.Index();
+
+        Assert.That(result, Is.InstanceOf<RedirectToActionResult>());
+        var redirect = (RedirectToActionResult)result;
+        Assert.That(redirect.ActionName, Is.EqualTo("AuditLog"));
+    }
+
+    [Test]
+    public async Task AdminController_AuditLog_ReturnsViewResultWithLogs()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+        dbContext.AuditLogs.Add(new AuditLog("UserLogin", _userContext.UserId.ToString(), "Administrator", "User logged in", "127.0.0.1"));
+        await dbContext.SaveChangesAsync();
+
+        var auditLogger = new FakeAuditLogger();
+        var controller = new AdminController(dbContext, auditLogger, _userContext);
+
+        var result = await controller.AuditLog(CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+        var viewResult = (ViewResult)result;
+        Assert.That(viewResult.ViewName, Is.EqualTo("AuditLog"));
+        Assert.That(viewResult.Model, Is.InstanceOf<IReadOnlyList<AuditLog>>());
+        var logs = (IReadOnlyList<AuditLog>)viewResult.Model!;
+        Assert.That(logs.Count, Is.EqualTo(1));
+    }
+
+    private class FakeAuditLogger : IAuditLogger
+    {
+        public Task LogActionAsync(string action, string userId, string userRole, string details, string ipAddress = "", CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task LogActionAsync(string action, string userId, string details, string ipAddress = "", CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private class FakeConversationRepository : IConversationRepository

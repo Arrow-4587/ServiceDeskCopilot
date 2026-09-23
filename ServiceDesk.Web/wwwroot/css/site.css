@@ -1684,3 +1684,110 @@ button.login-pwd-btn:active {
 .kb-doc-card .text-truncate {
   max-width: 100%;
 }
+
+/* ─────────────────────────────────────────────
+   SERVICE HEALTH & SYSTEM STATUS STYLES
+───────────────────────────────────────────── */
+.status-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-medium);
+}
+
+.status-card-title {
+  color: var(--text-heading) !important;
+}
+
+.status-card-desc {
+  color: var(--text-muted) !important;
+}
+
+.status-card-footer {
+  border-top: 1px solid var(--border-soft) !important;
+  color: var(--text-muted) !important;
+}
+
+.status-card-time {
+  color: var(--text-heading) !important;
+}
+
+.status-badge-operational {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: var(--success, #10b981) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.status-badge-degraded {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: var(--warning, #f59e0b) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+.status-badge-critical {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: var(--danger, #ef4444) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+.status-border-operational {
+  border-top: 3px solid var(--success, #10b981) !important;
+}
+
+.status-border-degraded {
+  border-top: 3px solid var(--warning, #f59e0b) !important;
+}
+
+.status-border-critical {
+  border-top: 3px solid var(--danger, #ef4444) !important;
+}
+
+/* ─────────────────────────────────────────────
+   AUDIT LOG TABLE STYLES (MATCHING REFERENCE UI)
+───────────────────────────────────────────── */
+.audit-log-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.audit-log-table th {
+  padding: 14px 18px;
+  background: var(--bg-surface-alt);
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.audit-log-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: middle;
+  font-size: 0.85rem;
+}
+
+.audit-log-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.audit-log-table tbody tr:hover td {
+  background-color: var(--bg-hover) !important;
+}
+
+.audit-badge-blue {
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: var(--brand-blue, #2563eb) !important;
+  border: 1px solid rgba(37, 99, 235, 0.3) !important;
+}
+
+

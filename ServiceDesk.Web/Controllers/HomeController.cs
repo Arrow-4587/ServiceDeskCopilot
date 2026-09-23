@@ -16,6 +16,7 @@ namespace ServiceDesk.Web.Controllers
         private readonly ApplicationDbContext _dbContext;
         private readonly IConversationRepository _conversationRepository;
         private readonly IKnowledgeBaseService _knowledgeBaseService;
+        private readonly ISystemStatusReader _statusReader;
         private readonly IWebHostEnvironment _env;
         private readonly ILogger<HomeController> _logger;
 
@@ -23,12 +24,14 @@ namespace ServiceDesk.Web.Controllers
             ApplicationDbContext dbContext,
             IConversationRepository conversationRepository,
             IKnowledgeBaseService knowledgeBaseService,
+            ISystemStatusReader statusReader,
             IWebHostEnvironment env,
             ILogger<HomeController> logger)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _conversationRepository = conversationRepository ?? throw new ArgumentNullException(nameof(conversationRepository));
             _knowledgeBaseService = knowledgeBaseService ?? throw new ArgumentNullException(nameof(knowledgeBaseService));
+            _statusReader = statusReader ?? throw new ArgumentNullException(nameof(statusReader));
             _env = env ?? throw new ArgumentNullException(nameof(env));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -111,6 +114,17 @@ namespace ServiceDesk.Web.Controllers
             {
                 _logger.LogError(ex, "[HomeController] Error fetching approved knowledge documents from Azure Blob Storage.");
                 model.KnowledgeDocuments = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
+            }
+
+            // Fetch service status health for dashboard cards
+            try
+            {
+                model.ServiceStatuses = await _statusReader.GetAllStatusesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[HomeController] Error fetching service health statuses.");
+                model.ServiceStatuses = Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
             }
 
             if (userRole.Equals("Analyst", StringComparison.OrdinalIgnoreCase))

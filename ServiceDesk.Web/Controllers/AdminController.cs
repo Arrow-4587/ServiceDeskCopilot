@@ -29,34 +29,21 @@ public class AdminController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public IActionResult Index()
     {
-        var prompts = await _dbContext.SystemPromptOverrides.AsNoTracking().ToListAsync(cancellationToken);
-        var tools = await _dbContext.ToolAllowLists.AsNoTracking().ToListAsync(cancellationToken);
-        var auditLogs = await _dbContext.AuditLogs.AsNoTracking().OrderByDescending(x => x.Timestamp).Take(100).ToListAsync(cancellationToken);
-        var configs = await _dbContext.AdminConfigs.AsNoTracking().ToListAsync(cancellationToken);
+        return RedirectToAction(nameof(AuditLog));
+    }
 
-        ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto[] approvedDocs = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
-        if (_knowledgeBaseService != null)
-        {
-            try
-            {
-                var docs = await _knowledgeBaseService.GetApprovedDocumentsAsync(cancellationToken);
-                approvedDocs = docs.ToArray();
-            }
-            catch
-            {
-                // Fallback to empty list if source store is temporarily unavailable
-            }
-        }
+    [HttpGet("AuditLog")]
+    public async Task<IActionResult> AuditLog(CancellationToken cancellationToken)
+    {
+        var auditLogs = await _dbContext.AuditLogs
+            .AsNoTracking()
+            .OrderByDescending(x => x.Timestamp)
+            .Take(100)
+            .ToListAsync(cancellationToken);
 
-        ViewBag.Prompts = prompts;
-        ViewBag.Tools = tools;
-        ViewBag.AuditLogs = auditLogs;
-        ViewBag.Configs = configs;
-        ViewBag.ApprovedDocs = approvedDocs;
-
-        return View();
+        return View("AuditLog", auditLogs);
     }
 
     [HttpPost]

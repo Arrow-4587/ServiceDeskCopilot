@@ -5,16 +5,13 @@
 }
 
 <div class="card border-0 shadow-sm rounded-4 mb-4 kb-widget-container" style="background:var(--bg-surface); border: 1px solid var(--border-soft) !important;">
-    <div class="card-header bg-transparent py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-bottom" style="border-color:var(--border-soft) !important;">
-        <div>
-            <h5 class="mb-0 fw-700" style="color:var(--text-heading);font-size:1.15rem;">
-                <i class="bi bi-journal-bookmark-fill me-2" style="color:var(--accent-violet, #7c3aed);"></i>Enterprise Knowledge Base
-            </h5>
-            <p class="text-muted small mb-0 mt-1">
-                Browse official, approved IT policies, setup guides, and troubleshooting procedures grounded by Azure AI.
-            </p>
-        </div>
+    <div class="card-header bg-transparent py-2.5 px-4 d-flex flex-wrap align-items-center justify-content-between gap-3 border-bottom" style="border-color:var(--border-soft) !important;">
         <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold small" style="color:var(--text-heading);">
+                <i class="bi bi-collection-fill me-1.5 text-primary"></i> Document Repository
+            </span>
+        </div>
+        <div class="d-flex align-items-center gap-2 ms-auto">
             <span id="kbCountBadge" class="badge rounded-pill px-3 py-1.5" style="background:var(--brand-blue-light, rgba(37,99,235,0.1));color:var(--brand-blue, #2563eb);border:1px solid var(--brand-blue, #2563eb);font-weight:600;font-size:0.8rem;">
                 @(hasInitialDocs ? initialDocs.Count : 0) Approved Documents
             </span>

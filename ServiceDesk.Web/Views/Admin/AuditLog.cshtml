@@ -1,0 +1,115 @@
+@model IReadOnlyList<ServiceDesk.Domain.Entities.AuditLog>
+@{
+    ViewData["Title"] = "Security Audit Log";
+    var eventsCount = Model?.Count ?? 0;
+}
+
+<div class="dashboard-page w-100">
+    <!-- Header Block aligned with Service Health Header visual treatment -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 pb-2 border-bottom gap-3" style="border-color:var(--border-soft) !important;">
+        <div>
+            <h3 class="fw-bold mb-1" style="color:var(--text-heading);letter-spacing:-0.3px;">
+                <i class="bi bi-journal-check text-primary me-2"></i> Security Audit Log
+            </h3>
+            <p class="small mb-0" style="color:var(--text-muted);">
+                Immutable security events, user activity trails, and operational audit logs.
+            </p>
+        </div>
+        <div>
+            <span class="badge rounded-pill px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5 status-badge-operational" style="font-weight:600;font-size:0.82rem;">
+                <i class="bi bi-shield-check"></i> Security Monitoring Active
+            </span>
+        </div>
+    </div>
+
+    <div class="card status-card">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h5 class="fw-bold mb-0 status-card-title">
+                <i class="bi bi-list-columns-reverse me-2 text-primary"></i> Audit Activity
+            </h5>
+            <span class="badge rounded-pill px-3 py-1.5" style="background:var(--brand-blue-light, rgba(37,99,235,0.1));color:var(--brand-blue, #2563eb);border:1px solid var(--brand-blue, #2563eb);font-weight:600;font-size:0.8rem;">
+                @eventsCount Recorded Events
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table audit-log-table align-middle mb-0" data-paginate="10">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Created Date</th>
+                            <th>Performed By</th>
+                            <th>Role</th>
+                            <th>Event</th>
+                            <th class="pe-4">What Changed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Any())
+                        {
+                            foreach (var log in Model)
+                            {
+                                var roleStyle = log.UserRole switch
+                                {
+                                    "Administrator" => "background:rgba(124,58,237,0.12);color:var(--accent-violet, #7c3aed);border:1px solid rgba(124,58,237,0.3);",
+                                    "Manager" => "background:rgba(245,158,11,0.12);color:var(--warning, #d97706);border:1px solid rgba(245,158,11,0.3);",
+                                    "Analyst" => "background:rgba(2,132,199,0.12);color:var(--accent-teal, #0284c7);border:1px solid rgba(2,132,199,0.3);",
+                                    "Employee" => "background:rgba(37,99,235,0.12);color:var(--brand-blue, #2563eb);border:1px solid rgba(37,99,235,0.3);",
+                                    _ => "background:var(--bg-surface-alt);color:var(--text-muted);border:1px solid var(--border-soft);"
+                                };
+
+                                var (badgeClass, badgeIcon) = log.Action switch
+                                {
+                                    "UserLogin" => ("status-badge-operational", "bi-check-circle-fill"),
+                                    "ApproveIncident" => ("status-badge-operational", "bi-check-circle-fill"),
+                                    "RejectIncident" => ("status-badge-critical", "bi-x-circle-fill"),
+                                    "IncidentCreated" => ("status-badge-degraded", "bi-pencil-square"),
+                                    "AddSystemPrompt" => ("status-badge-degraded", "bi-plus-circle-fill"),
+                                    "ToggleTool" => ("status-badge-degraded", "bi-sliders"),
+                                    "UserLogout" => ("bg-secondary-subtle text-secondary border border-secondary-subtle", "bi-box-arrow-right"),
+                                    _ => ("audit-badge-blue", "bi-info-circle-fill")
+                                };
+
+                                <tr>
+                                    <td class="ps-4 text-nowrap">
+                                        <span class="fw-medium" style="color:var(--text-body);font-size:0.84rem;">
+                                            @log.Timestamp.ToLocalTime().ToString("MMM dd, yyyy, hh:mm tt")
+                                        </span>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <span class="fw-semibold" style="color:var(--text-heading);font-size:0.85rem;">
+                                            <i class="bi bi-person-circle text-muted me-1.5 opacity-75"></i>@log.UserId
+                                        </span>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <span class="badge rounded-pill px-2.5 py-1" style="@roleStyle font-weight:600;font-size:0.75rem;">
+                                            @log.UserRole
+                                        </span>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <span class="badge rounded-pill @badgeClass px-2.5 py-1" style="font-weight:600;font-size:0.75rem;">
+                                            <i class="bi @badgeIcon me-1"></i>@log.Action
+                                        </span>
+                                    </td>
+                                    <td class="pe-4" style="max-width:440px;">
+                                        <span class="text-truncate d-inline-block w-100" style="color:var(--text-muted);font-size:0.84rem;" title="@log.Details">
+                                            @log.Details
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center py-5" style="color:var(--text-muted);">
+                                    <i class="bi bi-shield-check fs-2 d-block mb-2 opacity-50"></i>
+                                    <span>No security audit events found.</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

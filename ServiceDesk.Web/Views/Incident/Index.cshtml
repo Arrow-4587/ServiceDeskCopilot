@@ -2,7 +2,6 @@
 @using ServiceDesk.Domain.Enums
 @{
     ViewData["Title"] = "Incident Workspace";
-    var approvedDocs = ViewBag.ApprovedDocs as IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> ?? Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
     var totalCount = Model?.Count ?? 0;
     var pendingCount = Model?.Count(i => i.ApprovalStatus == ApprovalStatus.Pending) ?? 0;
     var approvedCount = Model?.Count(i => i.ApprovalStatus == ApprovalStatus.Approved) ?? 0;
@@ -213,11 +212,6 @@
                 </table>
             </div>
         }
-    </div>
-
-    <!-- Knowledge Base Section -->
-    <div class="mt-4">
-        @await Html.PartialAsync("_KnowledgeBasePartial", approvedDocs)
     </div>
 </div>
 

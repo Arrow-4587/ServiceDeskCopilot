@@ -2,8 +2,6 @@
 @{
     ViewData["Title"] = "Manager Dashboard";
     var agents = ViewBag.AgentMetrics as IEnumerable<ManagerAgentMetric> ?? Enumerable.Empty<ManagerAgentMetric>();
-    var chatHistory = ViewBag.ChatHistory as List<ConversationSession> ?? new();
-    var approvedDocs = ViewBag.ApprovedDocs as IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> ?? Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
     var auditLogs = ViewBag.AuditLogs as List<AuditLog> ?? new();
     var totalRequests = (int)(ViewBag.TotalRequests ?? 0);
     var totalTokens = (int)(ViewBag.TotalTokens ?? 0);
@@ -19,7 +17,7 @@
             <i class="bi bi-speedometer2 me-2" style="color:var(--accent);"></i>Manager Dashboard
         </h1>
         <p style="font-size:13px;color:var(--text-secondary);">
-            Welcome back, <strong style="color:var(--text-primary);">@username</strong> &nbsp;·&nbsp; AI telemetry, knowledge base, and conversation oversight.
+            Welcome back, <strong style="color:var(--text-primary);">@username</strong> &nbsp;·&nbsp; AI agent telemetry &amp; operational metrics.
         </p>
     </div>
 
@@ -58,46 +56,10 @@
                 <span class="stat-link">Agent reliability score</span>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-card-accent" style="background:#f59e0b;"></div>
-            <div class="stat-card-icon" style="background:rgba(245,158,11,0.12);">
-                <i class="bi bi-chat-square-dots" style="color:#f59e0b;font-size:18px;"></i>
-            </div>
-            <div class="stat-card-body">
-                <div class="stat-label">Your Conversations</div>
-                <div class="stat-value">@chatHistory.Count</div>
-                <a asp-controller="Chat" asp-action="Index" class="stat-link">Open Copilot →</a>
-            </div>
-        </div>
     </div>
 
-    @* ─── Tabs ─────────────────────────────────────────────────────────── *@
-    <ul class="nav nav-tabs mb-4" id="managerTabs" role="tablist"
-        style="border-bottom:1px solid var(--border);">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-metrics"
-                    type="button" role="tab" id="tab-metrics-btn">
-                <i class="bi bi-graph-up me-2"></i>AI Metrics
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history"
-                    type="button" role="tab" id="tab-history-btn">
-                <i class="bi bi-clock-history me-2"></i>Chat History
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-kb"
-                    type="button" role="tab" id="tab-kb-btn">
-                <i class="bi bi-journal-bookmark me-2"></i>Knowledge Base
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content" id="managerTabsContent">
-
-        @* ─── TAB 1: AI METRICS ─────────────────────────────────────────── *@
-        <div class="tab-pane fade show active" id="tab-metrics" role="tabpanel">
+    @* ─── AI METRICS SECTION ─────────────────────────────────────────── *@
+    <div>
 
             @* Agent Cards Grid *@
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
@@ -204,107 +166,6 @@
                 </div>
             </div>
         </div>
-
-        @* ─── TAB 2: CHAT HISTORY ────────────────────────────────────────── *@
-        <div class="tab-pane fade" id="tab-history" role="tabpanel">
-            <div class="card" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
-                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
-                    <span class="card-title" style="font-size:13px;font-weight:600;color:var(--text-primary);">
-                        <i class="bi bi-clock-history me-2" style="color:var(--accent);"></i>Your Conversation History
-                    </span>
-                    <a asp-controller="Chat" asp-action="Index" class="btn-ghost" style="font-size:12px;padding:5px 12px;border-radius:8px;background:var(--accent-muted);border:1px solid rgba(43,92,230,0.3);color:var(--accent);text-decoration:none;">
-                        <i class="bi bi-plus-lg me-1"></i>New Chat
-                    </a>
-                </div>
-
-                @if (chatHistory.Any())
-                {
-                    <div id="managerChatHistoryList" data-paginate="10" style="padding:8px;">
-                        @foreach (var session in chatHistory.OrderByDescending(s => s.Messages.LastOrDefault()?.Timestamp ?? DateTime.MinValue))
-                        {
-                            var firstMsg = session.Messages.FirstOrDefault()?.Content ?? "New conversation";
-                            var lastMsg = session.Messages.LastOrDefault();
-                            var preview = firstMsg.Length > 70 ? firstMsg[..70] + "…" : firstMsg;
-                            var msgCount = session.Messages.Count;
-                            var timeAgo = lastMsg != null ? FormatTimeAgo(lastMsg.Timestamp) : "—";
-                            <a href="@Url.Action("Index", "Chat", new { conversationId = session.Id })"
-                               style="display:flex;align-items:center;gap:14px;padding:14px 12px;border-radius:10px;text-decoration:none;transition:background 0.12s;border:1px solid transparent;margin-bottom:4px;"
-                               onmouseover="this.style.background='var(--bg-hover)';this.style.borderColor='var(--border)'" onmouseout="this.style.background='';this.style.borderColor='transparent'">
-                                <div style="width:42px;height:42px;border-radius:10px;background:var(--accent-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                    <i class="bi bi-chat-left-text" style="color:var(--accent);font-size:16px;"></i>
-                                </div>
-                                <div style="flex:1;min-width:0;">
-                                    <div style="font-size:13px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@preview</div>
-                                    <div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">
-                                        <i class="bi bi-chat-dots me-1"></i>@msgCount messages &nbsp;·&nbsp;
-                                        <i class="bi bi-clock me-1"></i>@timeAgo
-                                    </div>
-                                </div>
-                                <div style="flex-shrink:0;">
-                                    <span style="font-size:11px;padding:3px 10px;border-radius:999px;background:var(--bg-page);border:1px solid var(--border);color:var(--text-secondary);">
-                                        View <i class="bi bi-arrow-right ms-1"></i>
-                                    </span>
-                                </div>
-                            </a>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div style="padding:60px 24px;text-align:center;">
-                        <i class="bi bi-chat-left-dots" style="font-size:2.5rem;color:var(--text-secondary);opacity:0.4;display:block;margin-bottom:12px;"></i>
-                        <div style="font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:6px;">No conversations yet</div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Start chatting with the AI Copilot to see your history here.</div>
-                        <a asp-controller="Chat" asp-action="Index" class="btn-ghost" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;background:var(--accent);border:none;color:#fff;text-decoration:none;font-size:13px;font-weight:500;">
-                            <i class="bi bi-chat-dots"></i> Open Copilot
-                        </a>
-                    </div>
-                }
-            </div>
-        </div>
-
-        @* ─── TAB 3: KNOWLEDGE BASE ──────────────────────────────────────── *@
-        <div class="tab-pane fade" id="tab-kb" role="tabpanel">
-            @await Html.PartialAsync("_KnowledgeBasePartial", approvedDocs)
-        </div>
-
-    </div>@* /tab-content *@
+    </div>
 </div>@* /dashboard-page *@
-
-@functions {
-    static string FormatTimeAgo(DateTime dt)
-    {
-        var diff = DateTime.UtcNow - dt.ToUniversalTime();
-        if (diff.TotalMinutes < 1) return "Just now";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
-        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
-        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
-        return dt.ToLocalTime().ToString("MMM dd");
-    }
-}
-
-@section Scripts {
-<script>
-$(document).ready(function () {
-    // KB search filter
-    $('#kbSearch').on('input', function () {
-        var q = $(this).val().toLowerCase().trim();
-        $('.kb-card').each(function () {
-            var title = $(this).data('title') || '';
-            var cat = $(this).data('cat') || '';
-            var visible = !q || title.includes(q) || cat.includes(q);
-            if (visible) {
-                delete this.dataset.filteredOut;
-            } else {
-                this.dataset.filteredOut = 'true';
-            }
-        });
-        const kbContainer = document.getElementById('kbContainer');
-        if (kbContainer && kbContainer.tablePaginator) {
-            kbContainer.tablePaginator.update(true);
-        }
-    });
-});
-</script>
-}
 
