@@ -16,6 +16,7 @@ public class ConversationRepository : IConversationRepository
     public async Task<ConversationSession?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _dbContext.ConversationSessions
+            .AsNoTracking()
             .Include(c => c.Messages)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
@@ -24,6 +25,7 @@ public class ConversationRepository : IConversationRepository
     {
         return await _dbContext.ConversationSessions
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Messages)
             .Where(c => c.UserId == userId)
             .OrderByDescending(c => c.StartedAt)
@@ -34,6 +36,7 @@ public class ConversationRepository : IConversationRepository
     {
         return await _dbContext.ConversationSessions
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Messages)
             .OrderByDescending(c => c.StartedAt)
             .ToListAsync(cancellationToken);
@@ -94,7 +97,17 @@ public class ConversationRepository : IConversationRepository
         var totalCount = await query.CountAsync(cancellationToken);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
-        var rawItems = await query
+        if (totalCount == 0)
+        {
+            return new ServiceDesk.Application.DTOs.Chat.PaginatedConversationHistoryDto(
+                new List<ServiceDesk.Application.DTOs.Chat.ConversationSummaryDto>(),
+                page,
+                pageSize,
+                0,
+                0);
+        }
+
+        var pagedSessions = await query
             .OrderByDescending(c => c.StartedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -102,26 +115,55 @@ public class ConversationRepository : IConversationRepository
             {
                 c.Id,
                 c.StartedAt,
-                c.IsActive,
-                MessageCount = c.Messages.Count,
-                FirstMessage = c.Messages.OrderBy(m => m.Timestamp).Select(m => m.Content).FirstOrDefault(),
-                FirstUserMessage = c.Messages.Where(m => m.SenderRole == "User").OrderBy(m => m.Timestamp).Select(m => m.Content).FirstOrDefault(),
-                LastMessageTime = c.Messages.OrderByDescending(m => m.Timestamp).Select(m => (DateTime?)m.Timestamp).FirstOrDefault()
+                c.IsActive
             })
             .ToListAsync(cancellationToken);
 
-        var items = rawItems.Select(item =>
+        var sessionIds = pagedSessions.Select(s => s.Id).ToList();
+
+        var messages = await _dbContext.Messages
+            .AsNoTracking()
+            .Where(m => sessionIds.Contains(m.ConversationId))
+            .Select(m => new
+            {
+                m.ConversationId,
+                m.SenderRole,
+                m.Content,
+                m.Timestamp
+            })
+            .ToListAsync(cancellationToken);
+
+        var messagesBySession = messages
+            .GroupBy(m => m.ConversationId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(m => m.Timestamp).ToList());
+
+        var items = pagedSessions.Select(item =>
         {
-            var titleText = !string.IsNullOrWhiteSpace(item.FirstMessage) ? item.FirstMessage : "New Conversation";
-            var previewText = !string.IsNullOrWhiteSpace(item.FirstUserMessage) ? item.FirstUserMessage : titleText;
-            var lastActivity = item.LastMessageTime ?? item.StartedAt;
+            if (messagesBySession.TryGetValue(item.Id, out var msgs) && msgs.Count > 0)
+            {
+                var firstMessage = msgs[0].Content;
+                var firstUserMessage = msgs.FirstOrDefault(m => string.Equals(m.SenderRole, "User", StringComparison.OrdinalIgnoreCase))?.Content;
+                var lastMessageTime = msgs[^1].Timestamp;
+
+                var titleText = !string.IsNullOrWhiteSpace(firstMessage) ? firstMessage : "New Conversation";
+                var previewText = !string.IsNullOrWhiteSpace(firstUserMessage) ? firstUserMessage : titleText;
+
+                return new ServiceDesk.Application.DTOs.Chat.ConversationSummaryDto(
+                    item.Id,
+                    titleText,
+                    previewText,
+                    lastMessageTime,
+                    msgs.Count,
+                    item.IsActive
+                );
+            }
 
             return new ServiceDesk.Application.DTOs.Chat.ConversationSummaryDto(
                 item.Id,
-                titleText,
-                previewText,
-                lastActivity,
-                item.MessageCount,
+                "New Conversation",
+                "New Conversation",
+                item.StartedAt,
+                0,
                 item.IsActive
             );
         }).ToList();

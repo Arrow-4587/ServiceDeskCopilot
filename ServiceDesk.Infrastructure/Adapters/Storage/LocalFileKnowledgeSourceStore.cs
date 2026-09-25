@@ -71,7 +71,7 @@ public class LocalFileKnowledgeSourceStore : IKnowledgeSourceStore
 
     private static (string docName, string version, string section, int page, bool approved, bool active, string body) ParseFrontmatter(string filePath, string fileContent)
     {
-        var docName = Path.GetFileNameWithoutExtension(filePath);
+        var docName = Path.GetFileNameWithoutExtension(filePath).Replace('_', ' ');
         var version = "1.0";
         var section = "General";
         var page = 1;
@@ -92,19 +92,20 @@ public class LocalFileKnowledgeSourceStore : IKnowledgeSourceStore
                     var kv = line.Split(new[] { ':' }, 2);
                     if (kv.Length < 2) continue;
 
-                    var key = kv[0].Trim();
-                    var val = kv[1].Trim();
+                    var key = kv[0].Trim().ToLowerInvariant();
+                    var val = kv[1].Trim().Trim('"', '\'');
 
-                    switch (key.ToLowerInvariant())
+                    switch (key)
                     {
                         case "documentname":
-                            docName = val;
+                        case "title":
+                            if (!string.IsNullOrWhiteSpace(val)) docName = val;
                             break;
                         case "version":
-                            version = val;
+                            if (!string.IsNullOrWhiteSpace(val)) version = val;
                             break;
                         case "section":
-                            section = val;
+                            if (!string.IsNullOrWhiteSpace(val)) section = val;
                             break;
                         case "page":
                             if (int.TryParse(val, out var p)) page = p;

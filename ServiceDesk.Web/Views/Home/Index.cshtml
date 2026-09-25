@@ -7,6 +7,57 @@
     var isManager = userRole.Equals("Manager", StringComparison.OrdinalIgnoreCase);
     var isAnalyst = userRole.Equals("Analyst", StringComparison.OrdinalIgnoreCase);
     var isEmployee = !isAdmin && !isManager && !isAnalyst;
+
+    var svcList = Model.ServiceStatuses ?? Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
+    bool hasSvc = svcList.Any();
+    bool isCritical = hasSvc && svcList.Any(s => !s.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase) && !s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase));
+    bool isDegraded = hasSvc && svcList.Any(s => s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase));
+    int degradedCount = hasSvc ? svcList.Count(s => s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase)) : 0;
+    int criticalCount = hasSvc ? svcList.Count(s => !s.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase) && !s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase)) : 0;
+
+    string svcLabel;
+    string svcAccent;
+    string svcIconBg;
+    string svcIconColor;
+    string svcIconClass;
+    string svcSummary;
+
+    if (!hasSvc)
+    {
+        svcLabel = "Unavailable";
+        svcAccent = "var(--text-muted)";
+        svcIconBg = "rgba(148,163,184,0.12)";
+        svcIconColor = "var(--text-muted)";
+        svcIconClass = "bi-exclamation-circle";
+        svcSummary = "Service status unavailable";
+    }
+    else if (isCritical)
+    {
+        svcLabel = "Outage";
+        svcAccent = "var(--danger)";
+        svcIconBg = "rgba(239,68,68,0.12)";
+        svcIconColor = "var(--danger)";
+        svcIconClass = "bi-exclamation-octagon-fill";
+        svcSummary = criticalCount == 1 ? "1 service outage" : $"{criticalCount} service outages";
+    }
+    else if (isDegraded)
+    {
+        svcLabel = "Degraded";
+        svcAccent = "var(--warning)";
+        svcIconBg = "rgba(217,119,6,0.12)";
+        svcIconColor = "var(--warning)";
+        svcIconClass = "bi-exclamation-triangle-fill";
+        svcSummary = degradedCount == 1 ? "1 service requires attention" : $"{degradedCount} services require attention";
+    }
+    else
+    {
+        svcLabel = "Healthy";
+        svcAccent = "var(--success)";
+        svcIconBg = "rgba(16,185,129,0.12)";
+        svcIconColor = "var(--success)";
+        svcIconClass = "bi-check-all";
+        svcSummary = "All services operational";
+    }
 }
 
 <div class="dashboard-page">
@@ -71,60 +122,21 @@
                     <a asp-controller="Admin" asp-action="Index" class="stat-link">Audit Trail &rarr;</a>
                 </div>
             </div>
+            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Status")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Status")';}" tabindex="0" role="link" aria-label="Service Status: @svcLabel. @svcSummary. Open Service Health dashboard.">
+                <div class="stat-card-accent" style="background:@svcAccent;"></div>
+                <div class="stat-card-icon" style="background:@svcIconBg;color:@svcIconColor;">
+                    <i class="bi @svcIconClass"></i>
+                </div>
+                <div class="stat-card-body">
+                    <div class="stat-label">Service Status</div>
+                    <div class="stat-value" style="font-size:1.35rem;">@svcLabel</div>
+                    <div class="small text-muted text-truncate" style="font-size:0.75rem;margin-top:2px;" title="@svcSummary">@svcSummary</div>
+                    <a asp-controller="Status" asp-action="Index" class="stat-link" tabindex="-1">Service Health &rarr;</a>
+                </div>
+            </div>
         }
         else if (isManager)
         {
-            var svcList = Model.ServiceStatuses ?? Array.Empty<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>();
-            bool hasSvc = svcList.Any();
-            bool mgrCritical = hasSvc && svcList.Any(s => !s.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase) && !s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase));
-            bool mgrDegraded = hasSvc && svcList.Any(s => s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase));
-            int mgrDegradedCount = hasSvc ? svcList.Count(s => s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase)) : 0;
-            int mgrCriticalCount = hasSvc ? svcList.Count(s => !s.Status.Equals("Operational", StringComparison.OrdinalIgnoreCase) && !s.Status.Contains("Degraded", StringComparison.OrdinalIgnoreCase)) : 0;
-
-            string mgrSvcLabel;
-            string mgrSvcAccent;
-            string mgrSvcIconBg;
-            string mgrSvcIconColor;
-            string mgrSvcIconClass;
-            string mgrSvcSummary;
-
-            if (!hasSvc)
-            {
-                mgrSvcLabel = "Unavailable";
-                mgrSvcAccent = "var(--text-muted)";
-                mgrSvcIconBg = "rgba(148,163,184,0.12)";
-                mgrSvcIconColor = "var(--text-muted)";
-                mgrSvcIconClass = "bi-exclamation-circle";
-                mgrSvcSummary = "Service status unavailable";
-            }
-            else if (mgrCritical)
-            {
-                mgrSvcLabel = "Outage";
-                mgrSvcAccent = "var(--danger)";
-                mgrSvcIconBg = "rgba(239,68,68,0.12)";
-                mgrSvcIconColor = "var(--danger)";
-                mgrSvcIconClass = "bi-exclamation-octagon-fill";
-                mgrSvcSummary = mgrCriticalCount == 1 ? "1 service outage" : $"{mgrCriticalCount} service outages";
-            }
-            else if (mgrDegraded)
-            {
-                mgrSvcLabel = "Degraded";
-                mgrSvcAccent = "var(--warning)";
-                mgrSvcIconBg = "rgba(217,119,6,0.12)";
-                mgrSvcIconColor = "var(--warning)";
-                mgrSvcIconClass = "bi-exclamation-triangle-fill";
-                mgrSvcSummary = mgrDegradedCount == 1 ? "1 service requires attention" : $"{mgrDegradedCount} services require attention";
-            }
-            else
-            {
-                mgrSvcLabel = "Healthy";
-                mgrSvcAccent = "var(--success)";
-                mgrSvcIconBg = "rgba(16,185,129,0.12)";
-                mgrSvcIconColor = "var(--success)";
-                mgrSvcIconClass = "bi-check-all";
-                mgrSvcSummary = "All services operational";
-            }
-
             <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Incident")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Incident")';}" tabindex="0" role="link" aria-label="Incident Volume: @Model.UserTickets.Count tickets. View Incidents.">
                 <div class="stat-card-accent" style="background:var(--brand-blue);"></div>
                 <div class="stat-card-icon" style="background:var(--brand-blue-light);color:var(--brand-blue);">
@@ -158,15 +170,15 @@
                     <a asp-controller="Manager" asp-action="Index" class="stat-link" tabindex="-1">Agent Metrics &rarr;</a>
                 </div>
             </div>
-            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Status")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Status")';}" tabindex="0" role="link" aria-label="Service Status: @mgrSvcLabel. @mgrSvcSummary. Open Service Health dashboard.">
-                <div class="stat-card-accent" style="background:@mgrSvcAccent;"></div>
-                <div class="stat-card-icon" style="background:@mgrSvcIconBg;color:@mgrSvcIconColor;">
-                    <i class="bi @mgrSvcIconClass"></i>
+            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Status")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Status")';}" tabindex="0" role="link" aria-label="Service Status: @svcLabel. @svcSummary. Open Service Health dashboard.">
+                <div class="stat-card-accent" style="background:@svcAccent;"></div>
+                <div class="stat-card-icon" style="background:@svcIconBg;color:@svcIconColor;">
+                    <i class="bi @svcIconClass"></i>
                 </div>
                 <div class="stat-card-body">
                     <div class="stat-label">Service Status</div>
-                    <div class="stat-value" style="font-size:1.35rem;">@mgrSvcLabel</div>
-                    <div class="small text-muted text-truncate" style="font-size:0.75rem;margin-top:2px;" title="@mgrSvcSummary">@mgrSvcSummary</div>
+                    <div class="stat-value" style="font-size:1.35rem;">@svcLabel</div>
+                    <div class="small text-muted text-truncate" style="font-size:0.75rem;margin-top:2px;" title="@svcSummary">@svcSummary</div>
                     <a asp-controller="Status" asp-action="Index" class="stat-link" tabindex="-1">Service Health &rarr;</a>
                 </div>
             </div>
@@ -253,15 +265,16 @@
                     <a asp-controller="Knowledge" asp-action="Index" class="stat-link">Search Guides &rarr;</a>
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-card-accent" style="background:var(--success);"></div>
-                <div class="stat-card-icon" style="background:rgba(16,185,129,0.12);color:var(--success);">
-                    <i class="bi bi-shield-check"></i>
+            <div class="stat-card" style="cursor:pointer;" onclick="location.href='@Url.Action("Index", "Status")'" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='@Url.Action("Index", "Status")';}" tabindex="0" role="link" aria-label="Service Health: @svcLabel. @svcSummary. Open Service Health dashboard.">
+                <div class="stat-card-accent" style="background:@svcAccent;"></div>
+                <div class="stat-card-icon" style="background:@svcIconBg;color:@svcIconColor;">
+                    <i class="bi @svcIconClass"></i>
                 </div>
                 <div class="stat-card-body">
                     <div class="stat-label">Service Health</div>
-                    <div class="stat-value">Operational</div>
-                    <a asp-controller="Status" asp-action="Index" class="stat-link">Check Status &rarr;</a>
+                    <div class="stat-value" style="font-size:1.35rem;">@svcLabel</div>
+                    <div class="small text-muted text-truncate" style="font-size:0.75rem;margin-top:2px;" title="@svcSummary">@svcSummary</div>
+                    <a asp-controller="Status" asp-action="Index" class="stat-link" tabindex="-1">Check Status &rarr;</a>
                 </div>
             </div>
         }
@@ -301,8 +314,10 @@
                                 @foreach (var ticket in ticketsToShow)
                                 {
                                     <tr>
-                                        <td class="ps-4 fw-semibold text-truncate" style="max-width:260px;color:var(--text-heading);">
-                                            @ticket.Title
+                                        <td class="ps-4 fw-semibold ticket-title-col" style="color:var(--text-heading);">
+                                            <div class="ticket-title-clamp" title="@ticket.Title" aria-label="@ticket.Title" tabindex="0">
+                                                @ticket.Title
+                                            </div>
                                         </td>
                                         <td>
                                             <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">

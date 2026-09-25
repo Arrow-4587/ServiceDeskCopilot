@@ -39,38 +39,53 @@
         <div class="chat-messages" id="chatMessages" style="flex:1; overflow-y:auto; padding:20px; scrollbar-width:thin;" role="log" aria-live="polite">
             @if (Model != null && Model.Messages.Any())
             {
-                <div class="messages-area">
-                @foreach (var msg in Model.Messages)
+                <div class="messages-area" style="display:flex; flex-direction:column; gap:16px; padding:10px 0;">
+                @foreach (var msg in Model.Messages.OrderBy(m => m.Timestamp))
                 {
                     if (msg.SenderRole.Equals("User", StringComparison.OrdinalIgnoreCase))
                     {
-                        <div class="msg-row user">
-                            <div>
-                                <div class="msg-bubble user">@msg.Content</div>
-                                <div class="msg-time">@msg.Timestamp.ToLocalTime().ToString("h:mm tt")</div>
+                        <div class="msg-row user-row">
+                            <div class="msg-avatar user-avatar" title="You">
+                                @userInitial
+                            </div>
+                            <div class="msg-content-wrap">
+                                <div class="msg-header-line user-header">
+                                    <span class="msg-sender-name">You</span>
+                                </div>
+                                <div class="msg-bubble user-bubble">@msg.Content.Trim()</div>
+                                <div class="msg-time">
+                                    @msg.Timestamp.ToLocalTime().ToString("h:mm tt")
+                                </div>
                             </div>
                         </div>
                     }
                     else
                     {
-                        <div class="msg-row">
-                            <div>
-                                <div class="msg-bubble bot">
+                        <div class="msg-row assistant-row">
+                            <div class="msg-avatar bot-avatar" title="Service Desk Copilot">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <div class="msg-content-wrap">
+                                <div class="msg-header-line assistant-header">
+                                    <span class="msg-sender-name" style="color:var(--text-heading); font-weight:700;">Service Desk Copilot</span>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary px-2 py-0.5" style="font-size:0.65rem; font-weight:600;">AI</span>
+                                </div>
+                                <div class="msg-bubble assistant-bubble">
                                     <div class="msg-text-content">@Html.Raw(msg.Content.Replace("\n", "<br/>"))</div>
                                     @if (msg.Citations != null && msg.Citations.Any())
                                     {
-                                        <div class="citation-row">
+                                        <div class="citation-row" style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-soft); display:flex; flex-wrap:wrap; gap:6px;">
                                             @foreach (var c in msg.Citations)
                                             {
-                                                <span class="citation-chip-sm">
+                                                <span class="citation-chip-sm" style="font-size:0.75rem; background:var(--bg-surface-alt); border:1px solid var(--border-soft); border-radius:6px; padding:3px 8px; color:var(--accent-teal);">
                                                     📄 @c.DocumentName (@c.Section)
                                                 </span>
                                             }
                                         </div>
                                     }
                                 </div>
-                                <div class="msg-time-row">
-                                    <span class="msg-time">@msg.Timestamp.ToLocalTime().ToString("h:mm tt") · Copilot</span>
+                                <div class="msg-time-row" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                                    <span class="msg-time">@msg.Timestamp.ToLocalTime().ToString("h:mm tt")</span>
                                     <button type="button" class="btn-copy-response" title="Copy response" aria-label="Copy response">
                                         <i class="bi bi-copy"></i>
                                         <span class="copy-text">Copy</span>
@@ -124,8 +139,8 @@
                               aria-live="polite"
                               aria-atomic="true"></span>
                         <div class="spacer"></div>
-                        <button type="submit" class="send-btn" id="btnSend" title="Send" aria-label="Send message">
-                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        <button type="submit" class="send-btn chat-send-btn" id="btnSend" title="Send" aria-label="Send message">
+                            <i class="bi bi-send-fill"></i>
                         </button>
                     </div>
                 </div>
@@ -241,6 +256,8 @@ $(document).ready(function () {
     const btnHistoryPrev = $('#btnHistoryPrev');
     const btnHistoryNext = $('#btnHistoryNext');
     const liveAnnounce = $('#historyLiveAnnounce');
+    const userInitial = '@userInitial';
+    const conversationCache = new Map();
 
     let currentPage = @(pagedHistory?.PageNumber ?? 1);
     let totalPages = @(pagedHistory?.TotalPages ?? 1);
@@ -253,16 +270,30 @@ $(document).ready(function () {
     }
     scrollToBottom();
 
-    // Auto-resize textarea
+    // Auto-resize textarea helper
+    function adjustInputHeight(el) {
+        if (!el) return;
+        el.style.height = 'auto';
+        const scrollH = el.scrollHeight;
+        if (scrollH > 140) {
+            el.style.height = '140px';
+            el.style.overflowY = 'auto';
+        } else {
+            el.style.height = (scrollH > 24 ? scrollH : 24) + 'px';
+            el.style.overflowY = 'hidden';
+        }
+    }
+
     userMessageInput.on('input', function () {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+        adjustInputHeight(this);
     });
+
+    adjustInputHeight(userMessageInput[0]);
 
     // Suggestion prompts
     $(document).on('click', '.chat-suggestion', function () {
         userMessageInput.val($(this).data('query'));
-        userMessageInput.trigger('input');
+        adjustInputHeight(userMessageInput[0]);
         chatForm.submit();
     });
 
@@ -413,36 +444,94 @@ $(document).ready(function () {
     // Reopen Conversation via AJAX
     $(document).on('click', '.history-item', function (e) {
         e.preventDefault();
-        const convId = $(this).data('id');
+        const convId = $(this).attr('data-id') || $(this).data('id');
         if (!convId) return;
 
         $('.history-item').removeClass('active-item').attr('aria-current', 'false');
-        $(this).addClass('active-item').attr('aria-current', 'true');
+        $(`.history-item[data-id="${convId}"]`).addClass('active-item').attr('aria-current', 'true');
 
         loadConversation(convId, true);
         closeHistoryDrawer();
     });
 
     function loadConversation(convId, updateUrl) {
-        chatMessages.html('<div class="text-center py-5 text-muted"><div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>Loading conversation...</div>');
+        if (!convId) return;
+        const idKey = String(convId).trim().toLowerCase();
+
+        if (conversationCache.has(idKey)) {
+            const cached = conversationCache.get(idKey);
+            if (cached && cached.messages && cached.messages.length > 0) {
+                conversationIdInput.val(cached.id || convId);
+                if (updateUrl) {
+                    window.history.pushState({ conversationId: cached.id || convId }, '', '/Chat/Index?conversationId=' + (cached.id || convId));
+                }
+                renderConversationMessages(cached.messages);
+                return;
+            }
+        }
+
+        chatMessages.html(`
+            <div class="chat-skeleton-transcript" style="padding: 20px 0; display:flex; flex-direction:column; gap:16px;">
+                <div style="display:flex; flex-direction:row-reverse; align-items:flex-start; gap:10px; margin-left:auto; width:55%;">
+                    <div style="width:34px; height:34px; border-radius:50%; background:var(--border-soft); flex-shrink:0;"></div>
+                    <div style="height:48px; border-radius:18px 18px 4px 18px; background:var(--border-soft); width:100%; opacity:0.6;"></div>
+                </div>
+                <div style="display:flex; flex-direction:row; align-items:flex-start; gap:10px; margin-right:auto; width:70%;">
+                    <div style="width:34px; height:34px; border-radius:50%; background:var(--border-soft); flex-shrink:0;"></div>
+                    <div style="height:80px; border-radius:18px 18px 18px 4px; background:var(--border-soft); width:100%; opacity:0.6;"></div>
+                </div>
+                <div style="display:flex; flex-direction:row-reverse; align-items:flex-start; gap:10px; margin-left:auto; width:40%;">
+                    <div style="width:34px; height:34px; border-radius:50%; background:var(--border-soft); flex-shrink:0;"></div>
+                    <div style="height:42px; border-radius:18px 18px 4px 18px; background:var(--border-soft); width:100%; opacity:0.6;"></div>
+                </div>
+            </div>
+        `);
 
         $.ajax({
             url: '/Chat/Conversation/' + convId,
             type: 'GET',
+            dataType: 'json',
             success: function (data) {
-                conversationIdInput.val(data.id);
-
-                if (updateUrl) {
-                    window.history.pushState({ conversationId: data.id }, '', '/Chat/Index?conversationId=' + data.id);
+                if (!data) {
+                    chatMessages.html('<div class="alert alert-warning m-4">No conversation data found.</div>');
+                    return;
                 }
 
-                renderConversationMessages(data.messages);
+                const resolvedId = data.id || data.Id || convId;
+                const messageList = data.messages || data.Messages || [];
+
+                conversationCache.set(idKey, {
+                    id: resolvedId,
+                    messages: messageList
+                });
+
+                conversationIdInput.val(resolvedId);
+
+                if (updateUrl) {
+                    window.history.pushState({ conversationId: resolvedId }, '', '/Chat/Index?conversationId=' + resolvedId);
+                }
+
+                renderConversationMessages(messageList);
             },
-            error: function () {
+            error: function (xhr) {
+                console.error('Failed to load conversation:', xhr);
                 chatMessages.html('<div class="alert alert-danger m-4">Failed to load conversation history.</div>');
             }
         });
     }
+
+    // Support browser back/forward buttons
+    window.addEventListener('popstate', function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const convId = urlParams.get('conversationId');
+        if (convId) {
+            $('.history-item').removeClass('active-item').attr('aria-current', 'false');
+            $(`.history-item[data-id="${convId}"]`).addClass('active-item').attr('aria-current', 'true');
+            loadConversation(convId, false);
+        } else {
+            $('#btnNewSessionReset').trigger('click');
+        }
+    });
 
     function renderConversationMessages(messages) {
         if (!messages || messages.length === 0) {
@@ -455,42 +544,64 @@ $(document).ready(function () {
             return;
         }
 
-        let html = '<div class="messages-area">';
-        messages.forEach(msg => {
-            const isUser = msg.senderRole.toLowerCase() === 'user';
-            const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Sort strictly by timestamp (oldest to newest)
+        const sortedMessages = (messages || []).slice().sort((a, b) => {
+            const timeA = new Date(a.timestamp || a.Timestamp || 0);
+            const timeB = new Date(b.timestamp || b.Timestamp || 0);
+            return timeA - timeB;
+        });
+
+        let html = '<div class="messages-area" style="display:flex; flex-direction:column; gap:16px; padding:10px 0;">';
+        sortedMessages.forEach(msg => {
+            const senderRole = (msg.senderRole || msg.SenderRole || '').toLowerCase();
+            const isUser = senderRole === 'user';
+            const rawTime = msg.timestamp || msg.Timestamp;
+            const formattedTime = rawTime ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            const content = msg.content || msg.Content || '';
+            const citations = msg.citations || msg.Citations;
+            const suggestedDraft = msg.suggestedIncidentDraft || msg.SuggestedIncidentDraft;
+            const suggestedTitle = msg.suggestedTitle || msg.SuggestedTitle;
+            const suggestedDesc = msg.suggestedDescription || msg.SuggestedDescription;
 
             if (isUser) {
                 html += `
-                    <div class="msg-row user">
-                        <div>
-                            <div class="msg-bubble user">${escapeHtml(msg.content)}</div>
+                    <div class="msg-row user-row">
+                        <div class="msg-avatar user-avatar" title="${userInitial}">
+                            ${userInitial}
+                        </div>
+                        <div class="msg-content-wrap">
+                            <div class="msg-header-line user-header">
+                                <span class="msg-sender-name">You</span>
+                            </div>
+                            <div class="msg-bubble user-bubble">${escapeHtml(content.trim())}</div>
                             <div class="msg-time">${formattedTime}</div>
                         </div>
                     </div>`;
             } else {
                 let citationsHtml = '';
-                if (msg.citations && msg.citations.length > 0) {
-                    citationsHtml = `<div class="citation-row">`;
-                    msg.citations.forEach(c => {
-                        citationsHtml += `<span class="citation-chip-sm">📄 ${escapeHtml(c.documentName)} (${escapeHtml(c.section)})</span>`;
+                if (citations && citations.length > 0) {
+                    citationsHtml = `<div class="citation-row" style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-soft); display:flex; flex-wrap:wrap; gap:6px;">`;
+                    citations.forEach(c => {
+                        const docName = c.documentName || c.DocumentName || '';
+                        const docSection = c.section || c.Section || '';
+                        citationsHtml += `<span class="citation-chip-sm" style="font-size:0.75rem; background:var(--bg-surface-alt); border:1px solid var(--border-soft); border-radius:6px; padding:3px 8px; color:var(--accent-teal);">📄 ${escapeHtml(docName)} (${escapeHtml(docSection)})</span>`;
                     });
                     citationsHtml += '</div>';
                 }
 
                 let proposalHtml = '';
-                if (msg.suggestedIncidentDraft) {
+                if (suggestedDraft) {
                     proposalHtml = `
-                        <div class="proposal-card">
+                        <div class="proposal-card" style="margin-top:10px; padding:12px; background:rgba(217,119,6,0.08); border:1px solid rgba(217,119,6,0.25); border-radius:10px;">
                             <div style="display:flex;align-items:center;gap:8px;font-weight:700;color:var(--accent-amber);margin-bottom:6px;">
                                 <i class="bi bi-exclamation-triangle-fill"></i> Incident Draft Proposed
                             </div>
                             <div style="font-size:0.85rem;color:var(--text-body);margin-bottom:8px;">
-                                <strong>Title:</strong> ${escapeHtml(msg.suggestedTitle || 'New IT Support Ticket')}
+                                <strong>Title:</strong> ${escapeHtml(suggestedTitle || 'New IT Support Ticket')}
                             </div>
                             <button type="button" class="btn btn-sm btn-warning fw-semibold btn-generate-draft" 
-                                    data-title="${escapeHtml(msg.suggestedTitle || '')}" 
-                                    data-desc="${escapeHtml(msg.suggestedDescription || '')}" 
+                                    data-title="${escapeHtml(suggestedTitle || '')}" 
+                                    data-desc="${escapeHtml(suggestedDesc || '')}" 
                                     style="border-radius:8px;">
                                 <i class="bi bi-magic me-1"></i>Generate Incident Draft
                             </button>
@@ -498,15 +609,22 @@ $(document).ready(function () {
                 }
 
                 html += `
-                    <div class="msg-row">
-                        <div>
-                            <div class="msg-bubble bot">
-                                <div class="msg-text-content">${escapeHtml(msg.content).replace(/\n/g, '<br/>')}</div>
+                    <div class="msg-row assistant-row">
+                        <div class="msg-avatar bot-avatar" title="Service Desk Copilot">
+                            <i class="bi bi-robot"></i>
+                        </div>
+                        <div class="msg-content-wrap">
+                            <div class="msg-header-line assistant-header">
+                                <span class="msg-sender-name" style="color:var(--text-heading); font-weight:700;">Service Desk Copilot</span>
+                                <span class="badge rounded-pill bg-primary-subtle text-primary px-2 py-0.5" style="font-size:0.65rem; font-weight:600;">AI</span>
+                            </div>
+                            <div class="msg-bubble assistant-bubble">
+                                <div class="msg-text-content">${escapeHtml(content).replace(/\n/g, '<br/>')}</div>
                                 ${citationsHtml}
                                 ${proposalHtml}
                             </div>
-                            <div class="msg-time-row">
-                                <span class="msg-time">${formattedTime} · Copilot</span>
+                            <div class="msg-time-row" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                                <span class="msg-time">${formattedTime}</span>
                                 <button type="button" class="btn-copy-response" title="Copy response" aria-label="Copy response">
                                     <i class="bi bi-copy"></i>
                                     <span class="copy-text">Copy</span>
@@ -526,6 +644,8 @@ $(document).ready(function () {
     $('#btnNewSession, #btnNewSessionReset').on('click', function (e) {
         e.preventDefault();
         conversationIdInput.val('');
+        userMessageInput.val('');
+        adjustInputHeight(userMessageInput[0]);
         $('.history-item').removeClass('active-item').attr('aria-current', 'false');
         window.history.pushState({}, '', '/Chat/Index');
 
@@ -555,30 +675,47 @@ $(document).ready(function () {
 
         $('#chatWelcome').remove();
 
+        const nowFormatted = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
         // Append user message
         const userHtml = `
-            <div class="msg-row user">
-                <div>
-                    <div class="msg-bubble user">${escapeHtml(messageText)}</div>
-                    <div class="msg-time">Just now</div>
+            <div class="msg-row user-row">
+                <div class="msg-avatar user-avatar" title="${userInitial}">
+                    ${userInitial}
+                </div>
+                <div class="msg-content-wrap">
+                    <div class="msg-header-line user-header">
+                        <span class="msg-sender-name">You</span>
+                    </div>
+                    <div class="msg-bubble user-bubble">${escapeHtml(messageText)}</div>
+                    <div class="msg-time">${nowFormatted}</div>
                 </div>
             </div>`;
+
         if (chatMessages.find('.messages-area').length === 0) {
-            chatMessages.html('<div class="messages-area">' + userHtml + '</div>');
+            chatMessages.html('<div class="messages-area" style="display:flex; flex-direction:column; gap:16px; padding:10px 0;">' + userHtml + '</div>');
         } else {
             chatMessages.find('.messages-area').append(userHtml);
         }
 
+        const pendingPrompt = messageText;
         userMessageInput.val('');
-        userMessageInput.css('height', 'auto');
+        adjustInputHeight(userMessageInput[0]);
         scrollToBottom();
 
         // Typing indicator
         const loadingId = 'loading-' + Date.now();
         const loadingHtml = `
-            <div id="${loadingId}" class="msg-row">
-                <div>
-                    <div class="msg-bubble bot" style="padding:14px 18px;">
+            <div id="${loadingId}" class="msg-row assistant-row">
+                <div class="msg-avatar bot-avatar" title="Service Desk Copilot">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div class="msg-content-wrap">
+                    <div class="msg-header-line assistant-header">
+                        <span class="msg-sender-name" style="color:var(--text-heading); font-weight:700;">Service Desk Copilot</span>
+                        <span class="badge rounded-pill bg-primary-subtle text-primary px-2 py-0.5" style="font-size:0.65rem; font-weight:600;">Thinking...</span>
+                    </div>
+                    <div class="msg-bubble assistant-bubble">
                         <div class="typing-dots">
                             <span></span><span></span><span></span>
                         </div>
@@ -597,7 +734,7 @@ $(document).ready(function () {
             contentType: 'application/json',
             data: JSON.stringify({
                 conversationId: convId,
-                userMessage: messageText,
+                userMessage: pendingPrompt,
                 useAgentWorkflow: true
             }),
             success: function (data) {
@@ -605,6 +742,8 @@ $(document).ready(function () {
                 btnSend.prop('disabled', false);
 
                 if (data.conversationId) {
+                    conversationCache.delete(data.conversationId);
+                    if (convId) conversationCache.delete(convId);
                     conversationIdInput.val(data.conversationId);
                     window.history.replaceState({}, '', '/Chat/Index?conversationId=' + data.conversationId);
                     fetchHistory(currentPage, currentSearch, currentTimeFilter);
@@ -612,9 +751,9 @@ $(document).ready(function () {
 
                 let citationsHtml = '';
                 if (data.citations && data.citations.length > 0) {
-                    citationsHtml = `<div class="citation-row">`;
+                    citationsHtml = `<div class="citation-row" style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border-soft); display:flex; flex-wrap:wrap; gap:6px;">`;
                     data.citations.forEach(c => {
-                        citationsHtml += `<span class="citation-chip-sm">📄 ${escapeHtml(c.documentName)} (${escapeHtml(c.section)})</span>`;
+                        citationsHtml += `<span class="citation-chip-sm" style="font-size:0.75rem; background:var(--bg-surface-alt); border:1px solid var(--border-soft); border-radius:6px; padding:3px 8px; color:var(--accent-teal);">📄 ${escapeHtml(c.documentName)} (${escapeHtml(c.section)})</span>`;
                     });
                     citationsHtml += '</div>';
                 }
@@ -622,7 +761,7 @@ $(document).ready(function () {
                 let proposalHtml = '';
                 if (data.suggestedIncidentDraft) {
                     proposalHtml = `
-                        <div class="proposal-card">
+                        <div class="proposal-card" style="margin-top:10px; padding:12px; background:rgba(217,119,6,0.08); border:1px solid rgba(217,119,6,0.25); border-radius:10px;">
                             <div style="display:flex;align-items:center;gap:8px;font-weight:700;color:var(--accent-amber);margin-bottom:6px;">
                                 <i class="bi bi-exclamation-triangle-fill"></i> Incident Draft Proposed
                             </div>
@@ -639,15 +778,22 @@ $(document).ready(function () {
                 }
 
                 const assistantHtml = `
-                    <div class="msg-row">
-                        <div>
-                            <div class="msg-bubble bot">
+                    <div class="msg-row assistant-row">
+                        <div class="msg-avatar bot-avatar" title="Service Desk Copilot">
+                            <i class="bi bi-robot"></i>
+                        </div>
+                        <div class="msg-content-wrap">
+                            <div class="msg-header-line assistant-header">
+                                <span class="msg-sender-name" style="color:var(--text-heading); font-weight:700;">Service Desk Copilot</span>
+                                <span class="badge rounded-pill bg-primary-subtle text-primary px-2 py-0.5" style="font-size:0.65rem; font-weight:600;">AI</span>
+                            </div>
+                            <div class="msg-bubble assistant-bubble">
                                 <div class="msg-text-content">${escapeHtml(data.answer).replace(/\n/g, '<br/>')}</div>
                                 ${citationsHtml}
                                 ${proposalHtml}
                             </div>
-                            <div class="msg-time-row">
-                                <span class="msg-time">Just now · Copilot</span>
+                            <div class="msg-time-row" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                                <span class="msg-time">${nowFormatted}</span>
                                 <button type="button" class="btn-copy-response" title="Copy response" aria-label="Copy response">
                                     <i class="bi bi-copy"></i>
                                     <span class="copy-text">Copy</span>
@@ -661,6 +807,10 @@ $(document).ready(function () {
             error: function () {
                 $('#' + loadingId).remove();
                 btnSend.prop('disabled', false);
+                if (!userMessageInput.val().trim()) {
+                    userMessageInput.val(pendingPrompt);
+                    adjustInputHeight(userMessageInput[0]);
+                }
                 const errorHtml = `
                     <div class="msg-row">
                         <div>

@@ -6,6 +6,7 @@
     var pendingCount = Model?.Count(i => i.ApprovalStatus == ApprovalStatus.Pending) ?? 0;
     var approvedCount = Model?.Count(i => i.ApprovalStatus == ApprovalStatus.Approved) ?? 0;
     var rejectedCount = Model?.Count(i => i.ApprovalStatus == ApprovalStatus.Rejected) ?? 0;
+    var requesterMap = ViewBag.RequesterMap as IDictionary<Guid, (string DisplayName, string Role)>;
 }
 
 <div class="dashboard-page w-100">
@@ -149,6 +150,7 @@
                     <thead style="background:var(--bg-surface-alt);color:var(--text-muted);font-size:0.78rem;text-transform:uppercase;">
                         <tr>
                             <th class="ps-4">Ticket Title</th>
+                            <th>Raised By</th>
                             <th>Category</th>
                             <th>Priority</th>
                             <th>Approval Gate</th>
@@ -175,9 +177,33 @@
                                 _ => "bg-warning text-dark"
                             };
 
+                            string reqName = "Unknown";
+                            string reqRole = "";
+                            if (requesterMap != null && requesterMap.TryGetValue(draft.UserId, out var reqInfo) && !string.IsNullOrWhiteSpace(reqInfo.DisplayName))
+                            {
+                                reqName = reqInfo.DisplayName;
+                                reqRole = reqInfo.Role;
+                            }
+                            else if (draft.UserId == Guid.Empty)
+                            {
+                                reqName = "System";
+                            }
+
                             <tr class="inc-row" data-priority="@draft.ComputedPriority" data-status="@draft.Status" data-approval="@draft.ApprovalStatus">
-                                <td class="ps-4 fw-semibold" style="color:var(--text-heading);">
-                                    @draft.Title
+                                <td class="ps-4 fw-semibold ticket-title-col" style="color:var(--text-heading);">
+                                    <div class="ticket-title-clamp" title="@draft.Title" aria-label="@draft.Title" tabindex="0">
+                                        @draft.Title
+                                    </div>
+                                </td>
+                                <td class="text-nowrap" style="color:var(--text-body);">
+                                    <span class="d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-person-circle text-muted me-1" style="font-size:0.85rem;"></i>
+                                        <span class="fw-medium" style="color:var(--text-heading);">@reqName</span>
+                                        @if (!string.IsNullOrWhiteSpace(reqRole))
+                                        {
+                                            <span class="badge bg-secondary bg-opacity-25 text-body border border-secondary border-opacity-25 ms-1" style="font-size:0.7rem;font-weight:500;">@reqRole</span>
+                                        }
+                                    </span>
                                 </td>
                                 <td><span class="badge bg-secondary bg-opacity-50">@draft.Category</span></td>
                                 <td>

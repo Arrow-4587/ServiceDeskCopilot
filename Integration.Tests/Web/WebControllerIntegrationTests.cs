@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using System.Security.Claims;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Application.DTOs.Chat;
 using ServiceDesk.Application.DTOs.Incident;
@@ -190,6 +191,58 @@ public class WebControllerIntegrationTests
     }
 
     [Test]
+    public async Task ChatController_Index_Analyst_AccessingOtherUserConversation_ReturnsForbidResult()
+    {
+        _userContext.Role = UserRole.Analyst;
+        var otherUserId = Guid.NewGuid();
+        var session = new ConversationSession(otherUserId);
+        await _conversationRepository.AddAsync(session);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.Index(session.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ForbidResult>());
+    }
+
+    [Test]
+    public async Task ChatController_GetConversationApi_OtherUserAnalyst_ReturnsForbidResult()
+    {
+        _userContext.Role = UserRole.Analyst;
+        var otherUserId = Guid.NewGuid();
+        var session = new ConversationSession(otherUserId);
+        await _conversationRepository.AddAsync(session);
+
+        var chatService = new FakeChatConversationService();
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var controller = new ChatController(
+            chatService,
+            _conversationRepository,
+            _userContext,
+            dbContext,
+            NullLogger<ChatController>.Instance);
+
+        var result = await controller.GetConversationApi(session.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ForbidResult>());
+    }
+
+    [Test]
     public async Task ChatController_GetConversationApi_ValidUser_ReturnsJsonResultWithMessages()
     {
         var session = new ConversationSession(_userContext.UserId);
@@ -283,6 +336,146 @@ public class WebControllerIntegrationTests
     }
 
     [Test]
+    public async Task IncidentController_Index_Analyst_ReturnsAllDraftsFromAllRoles()
+    {
+        var empDraft = new IncidentDraft(Guid.NewGuid(), "Emp Issue", "Employee problem", "General", IncidentImpact.Low, IncidentUrgency.Low);
+        var mgrDraft = new IncidentDraft(Guid.NewGuid(), "Mgr Issue", "Manager problem", "Management", IncidentImpact.Medium, IncidentUrgency.Medium);
+        var adminDraft = new IncidentDraft(Guid.NewGuid(), "Admin Issue", "Admin problem", "Infrastructure", IncidentImpact.High, IncidentUrgency.High);
+        await _draftRepository.AddAsync(empDraft);
+        await _draftRepository.AddAsync(mgrDraft);
+        await _draftRepository.AddAsync(adminDraft);
+
+        _userContext.Role = UserRole.Analyst;
+
+        var reviewer = new IncidentReviewerService(new SecretRedactionService(), NullLogger<IncidentReviewerService>.Instance);
+        var gateway = new MockIncidentGatewayAdapter(NullLogger<MockIncidentGatewayAdapter>.Instance);
+        var useCase = new ApproveAndSubmitIncidentUseCase(_userContext, gateway);
+        var knowledgeService = new FakeKnowledgeBaseService();
+
+        var controller = new IncidentController(
+            _draftRepository,
+            reviewer,
+            useCase,
+            _userContext,
+            knowledgeService,
+            NullLogger<IncidentController>.Instance);
+
+        var result = await controller.Index(CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+        var viewResult = (ViewResult)result;
+        var drafts = (IReadOnlyList<IncidentDraft>)viewResult.Model!;
+        Assert.That(drafts.Count, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task IncidentController_Index_PopulatesRequesterMapWithUserIdentitiesAndRoles()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var empUser = new User("employee1", "employee1@company.com", UserRole.Employee);
+        var mgrUser = new User("manager1", "manager1@company.com", UserRole.Manager);
+        var analystUser = new User("analyst1", "analyst1@company.com", UserRole.Analyst);
+        dbContext.Users.AddRange(empUser, mgrUser, analystUser);
+        await dbContext.SaveChangesAsync();
+
+        var empDraft = new IncidentDraft(empUser.Id, "Emp Issue", "Employee problem", "General", IncidentImpact.Low, IncidentUrgency.Low);
+        var mgrDraft = new IncidentDraft(mgrUser.Id, "Mgr Issue", "Manager problem", "Management", IncidentImpact.Medium, IncidentUrgency.Medium);
+        var analystDraft = new IncidentDraft(analystUser.Id, "Analyst Issue", "Analyst problem", "Infrastructure", IncidentImpact.High, IncidentUrgency.High);
+        await _draftRepository.AddAsync(empDraft);
+        await _draftRepository.AddAsync(mgrDraft);
+        await _draftRepository.AddAsync(analystDraft);
+
+        _userContext.Role = UserRole.Analyst;
+
+        var reviewer = new IncidentReviewerService(new SecretRedactionService(), NullLogger<IncidentReviewerService>.Instance);
+        var gateway = new MockIncidentGatewayAdapter(NullLogger<MockIncidentGatewayAdapter>.Instance);
+        var useCase = new ApproveAndSubmitIncidentUseCase(_userContext, gateway);
+        var knowledgeService = new FakeKnowledgeBaseService();
+
+        var controller = new IncidentController(
+            _draftRepository,
+            reviewer,
+            useCase,
+            _userContext,
+            knowledgeService,
+            null!,
+            dbContext,
+            NullLogger<IncidentController>.Instance);
+
+        var result = await controller.Index(CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+        var requesterMap = controller.ViewBag.RequesterMap as IDictionary<Guid, (string DisplayName, string Role)>;
+        Assert.That(requesterMap, Is.Not.Null);
+        Assert.That(requesterMap!.Count, Is.EqualTo(3));
+
+        Assert.That(requesterMap[empUser.Id].DisplayName, Is.EqualTo("employee1"));
+        Assert.That(requesterMap[empUser.Id].Role, Is.EqualTo("Employee"));
+
+        Assert.That(requesterMap[mgrUser.Id].DisplayName, Is.EqualTo("manager1"));
+        Assert.That(requesterMap[mgrUser.Id].Role, Is.EqualTo("Manager"));
+
+        Assert.That(requesterMap[analystUser.Id].DisplayName, Is.EqualTo("analyst1"));
+        Assert.That(requesterMap[analystUser.Id].Role, Is.EqualTo("Analyst"));
+    }
+
+    [Test]
+    public async Task IncidentController_Details_Analyst_CanViewOtherUserDraft()
+    {
+        var otherUserDraft = new IncidentDraft(Guid.NewGuid(), "Other User Ticket", "Description", "IT", IncidentImpact.Medium, IncidentUrgency.Medium);
+        await _draftRepository.AddAsync(otherUserDraft);
+
+        _userContext.Role = UserRole.Analyst;
+
+        var reviewer = new IncidentReviewerService(new SecretRedactionService(), NullLogger<IncidentReviewerService>.Instance);
+        var gateway = new MockIncidentGatewayAdapter(NullLogger<MockIncidentGatewayAdapter>.Instance);
+        var useCase = new ApproveAndSubmitIncidentUseCase(_userContext, gateway);
+        var knowledgeService = new FakeKnowledgeBaseService();
+
+        var controller = new IncidentController(
+            _draftRepository,
+            reviewer,
+            useCase,
+            _userContext,
+            knowledgeService,
+            NullLogger<IncidentController>.Instance);
+
+        var result = await controller.Details(otherUserDraft.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+    }
+
+    [Test]
+    public async Task IncidentController_Details_Employee_AccessingOtherUserDraft_ReturnsForbidResult()
+    {
+        var otherUserDraft = new IncidentDraft(Guid.NewGuid(), "Other User Ticket", "Description", "IT", IncidentImpact.Medium, IncidentUrgency.Medium);
+        await _draftRepository.AddAsync(otherUserDraft);
+
+        _userContext.Role = UserRole.Employee;
+
+        var reviewer = new IncidentReviewerService(new SecretRedactionService(), NullLogger<IncidentReviewerService>.Instance);
+        var gateway = new MockIncidentGatewayAdapter(NullLogger<MockIncidentGatewayAdapter>.Instance);
+        var useCase = new ApproveAndSubmitIncidentUseCase(_userContext, gateway);
+        var knowledgeService = new FakeKnowledgeBaseService();
+
+        var controller = new IncidentController(
+            _draftRepository,
+            reviewer,
+            useCase,
+            _userContext,
+            knowledgeService,
+            NullLogger<IncidentController>.Instance);
+
+        var result = await controller.Details(otherUserDraft.Id, CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ForbidResult>());
+    }
+
+    [Test]
     public async Task IncidentController_ApproveOrReject_Approve_ExecutesUseCaseAndRedirects()
     {
         var draft = new IncidentDraft(_userContext.UserId, "Email Down", "Exchange server not responding", "Email", IncidentImpact.High, IncidentUrgency.High);
@@ -368,6 +561,79 @@ public class WebControllerIntegrationTests
         Assert.That(viewResult.Model, Is.InstanceOf<IReadOnlyList<AuditLog>>());
         var logs = (IReadOnlyList<AuditLog>)viewResult.Model!;
         Assert.That(logs.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ManagerController_Index_Manager_FiltersAuditLogsToOwnUser()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var managerUserId = Guid.NewGuid();
+        var managerUsername = "manager.one";
+
+        _userContext.UserId = managerUserId;
+        _userContext.Username = managerUsername;
+        _userContext.Role = UserRole.Manager;
+        _userContext.IsAuthenticated = true;
+
+        // Add audit entries for Manager A, Manager B, Admin, and Employee
+        dbContext.AuditLogs.Add(new AuditLog("ActionA", managerUsername, "Manager", "Manager A action", "127.0.0.1"));
+        dbContext.AuditLogs.Add(new AuditLog("ActionB", managerUserId.ToString(), "Manager", "Manager A action by id", "127.0.0.1"));
+        dbContext.AuditLogs.Add(new AuditLog("ActionC", "other.manager", "Manager", "Manager B action", "127.0.0.1"));
+        dbContext.AuditLogs.Add(new AuditLog("ActionD", "admin.user", "Administrator", "Admin action", "127.0.0.1"));
+        dbContext.AuditLogs.Add(new AuditLog("ActionE", "emp.user", "Employee", "Employee action", "127.0.0.1"));
+        await dbContext.SaveChangesAsync();
+
+        var controller = new ManagerController(
+            dbContext,
+            _userContext,
+            NullLogger<ManagerController>.Instance);
+
+        var result = await controller.Index(CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+        var viewResult = (ViewResult)result;
+        var auditLogs = controller.ViewBag.AuditLogs as List<AuditLog>;
+        Assert.That(auditLogs, Is.Not.Null);
+
+        Assert.That(auditLogs!.Count, Is.EqualTo(2));
+        Assert.That(auditLogs.All(l => l.UserId == managerUsername || l.UserId == managerUserId.ToString()), Is.True);
+    }
+
+    [Test]
+    public async Task ManagerController_Index_Admin_ReturnsAllAuditLogs()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        _userContext.UserId = Guid.NewGuid();
+        _userContext.Username = "admin.user";
+        _userContext.Role = UserRole.Administrator;
+        _userContext.IsAuthenticated = true;
+
+        dbContext.AuditLogs.Add(new AuditLog("ActionA", "manager.one", "Manager", "Manager A action", "127.0.0.1"));
+        dbContext.AuditLogs.Add(new AuditLog("ActionB", "other.manager", "Manager", "Manager B action", "127.0.0.1"));
+        dbContext.AuditLogs.Add(new AuditLog("ActionC", "admin.user", "Administrator", "Admin action", "127.0.0.1"));
+        await dbContext.SaveChangesAsync();
+
+        var controller = new ManagerController(
+            dbContext,
+            _userContext,
+            NullLogger<ManagerController>.Instance);
+
+        var result = await controller.Index(CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+        var viewResult = (ViewResult)result;
+        var auditLogs = controller.ViewBag.AuditLogs as List<AuditLog>;
+        Assert.That(auditLogs, Is.Not.Null);
+
+        Assert.That(auditLogs!.Count, Is.EqualTo(3));
     }
 
     private class FakeAuditLogger : IAuditLogger
@@ -567,5 +833,116 @@ public class WebControllerIntegrationTests
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
         public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
+    }
+
+    private class FakeWebHostEnvironment : Microsoft.AspNetCore.Hosting.IWebHostEnvironment
+    {
+        public string WebRootPath { get; set; } = string.Empty;
+        public Microsoft.Extensions.FileProviders.IFileProvider WebRootFileProvider { get; set; } = null!;
+        public string ContentRootPath { get; set; } = string.Empty;
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
+        public string EnvironmentName { get; set; } = "Development";
+        public string ApplicationName { get; set; } = "ServiceDesk.Web";
+    }
+
+    private class CustomSystemStatusReader : ISystemStatusReader
+    {
+        private readonly IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto> _statuses;
+        public CustomSystemStatusReader(IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto> statuses)
+        {
+            _statuses = statuses;
+        }
+        public Task<IReadOnlyList<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>> GetAllStatusesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_statuses);
+        }
+        public Task<ServiceDesk.Application.DTOs.Status.ServiceStatusDto?> GetServiceStatusAsync(string serviceName, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_statuses.FirstOrDefault(s => s.ServiceName == serviceName));
+        }
+    }
+
+    [Test]
+    public async Task HomeController_Index_ServiceDegraded_PopulatesDegradedServiceStatusesInModel()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var statuses = new List<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>
+        {
+            new("VPN", "Operational", "VPN OK", DateTime.UtcNow),
+            new("Teams", "DegradedPerformance", "Teams Latency", DateTime.UtcNow)
+        };
+        var statusReader = new CustomSystemStatusReader(statuses);
+
+        var controller = new HomeController(
+            dbContext,
+            _conversationRepository,
+            new FakeKnowledgeBaseService(),
+            statusReader,
+            new FakeWebHostEnvironment(),
+            NullLogger<HomeController>.Instance);
+
+        var httpContext = new DefaultHttpContext();
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            new Claim(ClaimTypes.Name, "TestUser"),
+            new Claim(ClaimTypes.Role, "Employee")
+        };
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await controller.Index();
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+        var viewResult = (ViewResult)result;
+        var model = (ServiceDesk.Web.Models.HomeViewModel)viewResult.Model!;
+        Assert.That(model.ServiceStatuses.Count, Is.EqualTo(2));
+        Assert.That(model.ServiceStatuses.Any(s => s.Status.Contains("Degraded")), Is.True);
+    }
+
+    [Test]
+    public async Task HomeController_Index_AllOperational_PopulatesOperationalServiceStatusesInModel()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new ApplicationDbContext(options);
+
+        var statuses = new List<ServiceDesk.Application.DTOs.Status.ServiceStatusDto>
+        {
+            new("VPN", "Operational", "VPN OK", DateTime.UtcNow),
+            new("Teams", "Operational", "Teams OK", DateTime.UtcNow)
+        };
+        var statusReader = new CustomSystemStatusReader(statuses);
+
+        var controller = new HomeController(
+            dbContext,
+            _conversationRepository,
+            new FakeKnowledgeBaseService(),
+            statusReader,
+            new FakeWebHostEnvironment(),
+            NullLogger<HomeController>.Instance);
+
+        var httpContext = new DefaultHttpContext();
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            new Claim(ClaimTypes.Name, "TestUser"),
+            new Claim(ClaimTypes.Role, "Employee")
+        };
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var result = await controller.Index();
+
+        Assert.That(result, Is.InstanceOf<ViewResult>());
+        var viewResult = (ViewResult)result;
+        var model = (ServiceDesk.Web.Models.HomeViewModel)viewResult.Model!;
+        Assert.That(model.ServiceStatuses.Count, Is.EqualTo(2));
+        Assert.That(model.ServiceStatuses.All(s => s.Status == "Operational"), Is.True);
     }
 }

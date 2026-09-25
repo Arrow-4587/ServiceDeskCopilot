@@ -1032,10 +1032,11 @@
                 }
             });
         } else {
-            // Already rendered via Razor, initialize pagination
+            // Already rendered via Razor, initialize pagination and apply filters
             if (window.TablePaginator && !gridContainer.tablePaginator) {
                 gridContainer.tablePaginator = new window.TablePaginator(gridContainer, { pageSize: 10 });
             }
+            applyFilters();
         }
 
         function createDocumentCardElement(doc) {

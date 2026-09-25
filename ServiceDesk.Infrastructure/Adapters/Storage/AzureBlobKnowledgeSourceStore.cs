@@ -138,11 +138,11 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
 
         if (content.StartsWith("---"))
         {
-            var parts = content.Split(new[] { "---" }, 3, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2)
+            var parts = content.Split(new[] { "---" }, 3, StringSplitOptions.None);
+            if (parts.Length >= 3)
             {
-                var yaml = parts[0];
-                body = parts[1].Trim();
+                var yaml = parts[1];
+                body = parts[2].Trim();
 
                 foreach (var line in yaml.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
                 {
@@ -154,9 +154,16 @@ public class AzureBlobKnowledgeSourceStore : IKnowledgeSourceStore
 
                         switch (key)
                         {
-                            case "title": docName = val; break;
-                            case "version": version = val; break;
-                            case "section": section = val; break;
+                            case "title":
+                            case "documentname":
+                                if (!string.IsNullOrWhiteSpace(val)) docName = val;
+                                break;
+                            case "version":
+                                if (!string.IsNullOrWhiteSpace(val)) version = val;
+                                break;
+                            case "section":
+                                if (!string.IsNullOrWhiteSpace(val)) section = val;
+                                break;
                             case "page": int.TryParse(val, out page); break;
                             case "approved": bool.TryParse(val, out approved); break;
                             case "active": bool.TryParse(val, out active); break;

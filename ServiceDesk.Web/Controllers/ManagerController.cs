@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ServiceDesk.Application.Common.Interfaces;
+using ServiceDesk.Domain.Entities;
 using ServiceDesk.Infrastructure.Persistence;
 using ServiceDesk.Web.Models;
 using System.Security.Claims;
@@ -12,28 +13,56 @@ namespace ServiceDesk.Web.Controllers;
 public class ManagerController : Controller
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly IConversationRepository _conversationRepository;
-    private readonly IKnowledgeBaseService _knowledgeBaseService;
+    private readonly IUserContext _userContext;
     private readonly ILogger<ManagerController> _logger;
 
     public ManagerController(
         ApplicationDbContext dbContext,
-        IConversationRepository conversationRepository,
-        IKnowledgeBaseService knowledgeBaseService,
+        IUserContext userContext,
+        ILogger<ManagerController> logger)
+        : this(dbContext, null, null, userContext, logger)
+    {
+    }
+
+    [ActivatorUtilitiesConstructor]
+    public ManagerController(
+        ApplicationDbContext dbContext,
+        IConversationRepository? conversationRepository,
+        IKnowledgeBaseService? knowledgeBaseService,
+        IUserContext userContext,
         ILogger<ManagerController> logger)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _conversationRepository = conversationRepository ?? throw new ArgumentNullException(nameof(conversationRepository));
-        _knowledgeBaseService = knowledgeBaseService ?? throw new ArgumentNullException(nameof(knowledgeBaseService));
+        _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        IQueryable<AuditLog> auditQuery = _dbContext.AuditLogs.AsNoTracking();
+
+        bool isAdmin = (User?.IsInRole("Administrator") ?? false) || _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Administrator;
+        if (!isAdmin)
+        {
+            var username = _userContext.Username;
+            var userIdStr = _userContext.UserId != Guid.Empty ? _userContext.UserId.ToString() : "";
+            var identityName = User?.Identity?.Name ?? "";
+            var nameIdClaim = User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+
+            var validUserIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                username,
+                userIdStr,
+                identityName,
+                nameIdClaim
+            }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
+            auditQuery = auditQuery.Where(a => validUserIds.Contains(a.UserId));
+        }
+
         // ── Audit logs for AI Metrics (last 500 entries) ─────────────────────
-        var recentLogs = await _dbContext.AuditLogs
-            .AsNoTracking()
+        var recentLogs = await auditQuery
             .OrderByDescending(a => a.Timestamp)
             .Take(500)
             .ToListAsync(cancellationToken);

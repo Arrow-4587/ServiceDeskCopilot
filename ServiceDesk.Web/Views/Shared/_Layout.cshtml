@@ -51,7 +51,7 @@
     <div class="app-shell @(Context.Request.Cookies["sdesk_sidebar_collapsed"] == "true" ? "sidebar-collapsed" : "")" id="appShell">
         <!-- ENTERPRISE ROLE-AWARE SIDEBAR -->
         <aside class="sidebar" id="appSidebar">
-            <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="sidebar-header d-flex align-items-center justify-content-between mb-2">
                 <a class="sidebar-brand m-0" asp-controller="Home" asp-action="Index" aria-label="ServiceDesk.AI home">
                     <span class="sidebar-logo">
                         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.2">
@@ -63,14 +63,13 @@
                         <small>IT Operations Hub</small>
                     </span>
                 </a>
-                <button type="button" class="sidebar-toggle-btn d-none d-md-flex" id="sidebarToggleBtn" title="Toggle Sidebar (Expand/Collapse)" aria-label="Toggle Sidebar">
+                <button type="button" class="sidebar-toggle-btn d-flex" id="sidebarToggleBtn" title="Toggle Sidebar (Expand/Collapse)" aria-label="Toggle Sidebar">
                     <i class="bi bi-layout-sidebar-inset" id="sidebarToggleIcon"></i>
                 </button>
             </div>
-
-            <div class="sidebar-section-label">Workspace</div>
             
             <nav class="nav-items" aria-label="Main Navigation">
+                <div class="sidebar-section-label">Workspace</div>
                 <a class="nav-btn @dashActive" id="nav-dash" title="Overview" asp-controller="Home" asp-action="Index">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                     <span>Overview</span>
@@ -115,41 +114,38 @@
                 }
             </nav>
 
-            <div class="sidebar-bottom">
+            <div class="sidebar-bottom" id="sidebarBottom">
                 <!-- Theme Toggle Button -->
-                <button type="button" class="nav-btn w-100" id="themeToggleBtn" title="Toggle Theme" aria-label="Toggle Theme">
+                <button type="button" class="nav-btn theme-toggle-btn w-100" id="themeToggleBtn" title="Toggle Theme (Light / Dark)" aria-label="Toggle Theme">
                     <i id="themeIcon" class="bi bi-moon-stars-fill" style="font-size:1.1rem;"></i>
                     <span>Theme</span>
                 </button>
 
                 @if (User?.Identity?.IsAuthenticated == true)
                 {
-                    <div class="d-flex align-items-center gap-2 px-1 py-1 user-info-wrap">
-                        <div class="user-avatar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="@username" style="cursor:pointer;">
+                    <div class="user-info-card d-flex align-items-center gap-2 px-2 py-1.5 rounded-3">
+                        <div class="user-avatar" title="@username">
                             @initial
                         </div>
                         <div class="user-info d-flex flex-column flex-grow-1 min-w-0" style="line-height:1.2;">
-                            <span class="fw-bold text-truncate" style="color:var(--text-primary);font-size:0.83rem;">@username</span>
-                            <span class="text-muted small text-truncate" style="font-size:0.72rem;color:var(--text-faint);">@userRole</span>
+                            <span class="fw-bold text-truncate user-name" title="@username">@username</span>
+                            <span class="small text-truncate user-role" title="Role: @userRole">@userRole</span>
                         </div>
-                        <ul class="dropdown-menu shadow-sm border-0" style="background:var(--bg-surface); border:1px solid var(--border)!important;">
-                            <li><span class="dropdown-item-text fw-bold" style="color:var(--text-primary);">@username</span></li>
-                            <li><span class="dropdown-item-text text-muted small">Role: @userRole</span></li>
-                            <li><hr class="dropdown-divider" style="border-color:var(--border);"></li>
-                            <li>
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline w-100">
-                                    <button type="submit" class="dropdown-item text-danger d-flex align-items-center gap-2">
-                                        <i class="bi bi-box-arrow-right"></i> Logout
-                                    </button>
-                                </form>
-                            </li>
-                        </ul>
                     </div>
+
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="w-100 m-0 p-0" id="sidebarLogoutForm">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="nav-btn logout-btn w-100" id="sidebarLogoutBtn" title="Log out of your session" aria-label="Logout">
+                            <i class="bi bi-box-arrow-right logout-icon"></i>
+                            <span>Logout</span>
+                        </button>
+                    </form>
                 }
                 else
                 {
-                    <a asp-controller="Account" asp-action="Login" class="user-avatar mx-auto" title="Sign In" style="text-decoration:none;">
-                        <i class="bi bi-person"></i>
+                    <a asp-controller="Account" asp-action="Login" class="nav-btn login-btn w-100" title="Sign In" aria-label="Sign In">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Sign In</span>
                     </a>
                 }
             </div>

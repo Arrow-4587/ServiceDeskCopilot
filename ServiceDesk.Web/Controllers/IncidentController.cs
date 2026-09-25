@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ServiceDesk.Application.Common.Interfaces;
 using ServiceDesk.Application.DTOs.Incident;
@@ -7,6 +8,7 @@ using ServiceDesk.Application.Services.Agent;
 using ServiceDesk.Application.UseCases;
 using ServiceDesk.Domain.Entities;
 using ServiceDesk.Domain.Enums;
+using ServiceDesk.Infrastructure.Persistence;
 
 namespace ServiceDesk.Web.Controllers;
 
@@ -19,6 +21,7 @@ public class IncidentController : Controller
     private readonly IUserContext _userContext;
     private readonly IKnowledgeBaseService _knowledgeBaseService;
     private readonly IAuditLogger _auditLogger;
+    private readonly ApplicationDbContext? _dbContext;
     private readonly ILogger<IncidentController> _logger;
 
     public IncidentController(
@@ -28,7 +31,19 @@ public class IncidentController : Controller
         IUserContext userContext,
         IKnowledgeBaseService knowledgeBaseService,
         ILogger<IncidentController> logger)
-        : this(draftRepository, reviewerService, approveAndSubmitUseCase, userContext, knowledgeBaseService, null!, logger)
+        : this(draftRepository, reviewerService, approveAndSubmitUseCase, userContext, knowledgeBaseService, null!, null, logger)
+    {
+    }
+
+    public IncidentController(
+        IIncidentDraftRepository draftRepository,
+        IIncidentReviewerService reviewerService,
+        ApproveAndSubmitIncidentUseCase approveAndSubmitUseCase,
+        IUserContext userContext,
+        IKnowledgeBaseService knowledgeBaseService,
+        IAuditLogger auditLogger,
+        ILogger<IncidentController> logger)
+        : this(draftRepository, reviewerService, approveAndSubmitUseCase, userContext, knowledgeBaseService, auditLogger, null, logger)
     {
     }
 
@@ -40,6 +55,7 @@ public class IncidentController : Controller
         IUserContext userContext,
         IKnowledgeBaseService knowledgeBaseService,
         IAuditLogger auditLogger,
+        ApplicationDbContext? dbContext,
         ILogger<IncidentController> logger)
     {
         _draftRepository = draftRepository ?? throw new ArgumentNullException(nameof(draftRepository));
@@ -48,6 +64,7 @@ public class IncidentController : Controller
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _knowledgeBaseService = knowledgeBaseService ?? throw new ArgumentNullException(nameof(knowledgeBaseService));
         _auditLogger = auditLogger;
+        _dbContext = dbContext;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -59,10 +76,41 @@ public class IncidentController : Controller
         {
             drafts = Array.Empty<IncidentDraft>();
         }
+        else if (_userContext.Role == UserRole.Analyst || _userContext.Role == UserRole.Administrator || (User?.IsInRole("Analyst") ?? false) || (User?.IsInRole("Administrator") ?? false))
+        {
+            drafts = await _draftRepository.GetAllAsync(cancellationToken);
+        }
         else
         {
             drafts = await _draftRepository.GetByUserIdAsync(_userContext.UserId, cancellationToken);
         }
+
+        var requesterMap = new Dictionary<Guid, (string DisplayName, string Role)>();
+        if (_dbContext != null && drafts.Any())
+        {
+            try
+            {
+                var userIds = drafts.Select(d => d.UserId).Where(id => id != Guid.Empty).Distinct().ToList();
+                if (userIds.Any())
+                {
+                    var users = await _dbContext.Users
+                        .AsNoTracking()
+                        .Where(u => userIds.Contains(u.Id))
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var u in users)
+                    {
+                        var displayName = !string.IsNullOrWhiteSpace(u.Username) ? u.Username : u.Email;
+                        requesterMap[u.Id] = (displayName, u.Role.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[IncidentController] Error fetching user metadata for incident requesters.");
+            }
+        }
+        ViewBag.RequesterMap = requesterMap;
 
         IReadOnlyList<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto> approvedDocs = Array.Empty<ServiceDesk.Application.DTOs.Knowledge.KnowledgeDocumentDto>();
         try
@@ -85,6 +133,14 @@ public class IncidentController : Controller
         if (draft == null)
         {
             return NotFound("Incident draft not found.");
+        }
+
+        bool isAnalystOrAdmin = _userContext.Role == UserRole.Analyst || _userContext.Role == UserRole.Administrator || (User?.IsInRole("Analyst") ?? false) || (User?.IsInRole("Administrator") ?? false);
+        bool isOwner = _userContext.IsAuthenticated && draft.UserId == _userContext.UserId;
+
+        if (!isAnalystOrAdmin && !isOwner)
+        {
+            return Forbid();
         }
 
         var reviewResult = await _reviewerService.ReviewDraftAsync(draft, cancellationToken);

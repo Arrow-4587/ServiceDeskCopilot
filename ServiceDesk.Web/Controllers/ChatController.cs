@@ -50,7 +50,7 @@ public class ChatController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(Guid? conversationId, CancellationToken cancellationToken)
     {
-        bool isRestrictedUser = _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee || _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Manager;
+        bool isRestrictedUser = _userContext.Role != ServiceDesk.Domain.Enums.UserRole.Administrator && !(User?.IsInRole("Administrator") ?? false);
 
         ConversationSession? session = null;
         if (conversationId.HasValue && conversationId.Value != Guid.Empty)
@@ -69,10 +69,8 @@ public class ChatController : Controller
 
         Guid? filterUserId = isRestrictedUser ? _userContext.UserId : (Guid?)null;
         var pagedHistory = await _conversationRepository.GetPagedSummariesAsync(filterUserId, 1, 10, null, null, cancellationToken);
-        var userHistory = await _conversationRepository.GetByUserIdAsync(_userContext.UserId, cancellationToken);
 
         ViewBag.HistoryPaged = pagedHistory;
-        ViewBag.SidebarHistory = userHistory.OrderByDescending(s => s.StartedAt).ToList();
         ViewBag.ActiveConversationId = session?.Id ?? Guid.Empty;
         return View(session);
     }
@@ -85,7 +83,7 @@ public class ChatController : Controller
         [FromQuery] string? timeFilter = null,
         CancellationToken cancellationToken = default)
     {
-        bool isRestrictedUser = _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee || _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Manager;
+        bool isRestrictedUser = _userContext.Role != ServiceDesk.Domain.Enums.UserRole.Administrator && !(User?.IsInRole("Administrator") ?? false);
         Guid? filterUserId = isRestrictedUser ? _userContext.UserId : (Guid?)null;
         var paged = await _conversationRepository.GetPagedSummariesAsync(filterUserId, page, pageSize, search, timeFilter, cancellationToken);
         return Json(paged);
@@ -101,7 +99,8 @@ public class ChatController : Controller
             return NotFound(new { error = "Conversation not found." });
         }
 
-        if ((_userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee || _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Manager) && session.UserId != _userContext.UserId)
+        bool isRestrictedUser = _userContext.Role != ServiceDesk.Domain.Enums.UserRole.Administrator && !(User?.IsInRole("Administrator") ?? false);
+        if (isRestrictedUser && session.UserId != _userContext.UserId)
         {
             return Forbid();
         }
@@ -132,8 +131,9 @@ public class ChatController : Controller
     [HttpGet]
     public async Task<IActionResult> History(CancellationToken cancellationToken)
     {
+        bool isRestrictedUser = _userContext.Role != ServiceDesk.Domain.Enums.UserRole.Administrator && !(User?.IsInRole("Administrator") ?? false);
         IReadOnlyList<ConversationSession> sessions;
-        if (_userContext.Role == ServiceDesk.Domain.Enums.UserRole.Employee || _userContext.Role == ServiceDesk.Domain.Enums.UserRole.Manager)
+        if (isRestrictedUser)
         {
             sessions = await _conversationRepository.GetByUserIdAsync(_userContext.UserId, cancellationToken);
         }
