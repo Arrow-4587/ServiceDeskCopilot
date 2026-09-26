@@ -13,6 +13,7 @@ using System.ClientModel;
 using ServiceDesk.Infrastructure.Services;
 using Azure;
 using Azure.AI.OpenAI;
+using ServiceDesk.Application.Services.Agent;
 
 namespace ServiceDesk.Infrastructure;
 
@@ -83,20 +84,75 @@ public static class DependencyInjection
             throw new InvalidOperationException("UseMockAiProvider must be false for Azure-only runtime operation.");
         }
 
-        // Azure AI Foundry workflow is mandatory; local Semantic Kernel workflow is disabled.
+        // Multi-Agent Workflow: Azure AI Foundry mode vs Explicit Local Development Fallback
+        bool useFoundryWorkflow = (bool.TryParse(configuration["FeatureFlags:UseAzureAiFoundryAgentWorkflow"], out var parsedFoundry) && parsedFoundry) ||
+                                  (bool.TryParse(configuration["AzureAiFoundry:UseAzureAiFoundryAgentWorkflow"], out var parsedFoundryAlt) && parsedFoundryAlt);
+
+        bool enableLocalFallback = (bool.TryParse(configuration["FeatureFlags:EnableLocalAgentWorkflowFallback"], out var parsedLocal) && parsedLocal) ||
+                                   (bool.TryParse(configuration["FeatureFlags:UseLocalAgentWorkflowFallback"], out var parsedLocalAlt) && parsedLocalAlt);
+
         services.AddHttpClient<AzureAiFoundryAgentWorkflowAdapter>();
-        services.AddTransient<AzureAiFoundryAgentWorkflowAdapter>();
 
-        string foundryEndpoint = configuration["AzureAiFoundry:ProjectEndpoint"]?.Trim() ?? string.Empty;
-        string foundryKey = configuration["AzureAiFoundry:ApiKey"]?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(foundryEndpoint) || foundryEndpoint.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase) ||
-            string.IsNullOrWhiteSpace(foundryKey) || foundryKey.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Azure AI Foundry ProjectEndpoint and ApiKey are required. Local agent workflow is disabled.");
+        if (useFoundryWorkflow)
+        {
+            string foundryEndpoint = configuration["AzureAiFoundry:ProjectEndpoint"]?.Trim() ?? string.Empty;
+            string foundryKey = configuration["AzureAiFoundry:ApiKey"]?.Trim() ?? string.Empty;
+            string plannerName = configuration["AzureAiFoundry:PlannerAgentName"]?.Trim() ?? string.Empty;
+            string specialistName = configuration["AzureAiFoundry:SupportSpecialistAgentName"]?.Trim() ?? string.Empty;
+            string reviewerName = configuration["AzureAiFoundry:ReviewerAgentName"]?.Trim() ?? string.Empty;
 
-        services.AddSingleton(new AzureOpenAIClient(new Uri(foundryEndpoint), new ApiKeyCredential(foundryKey)));
-        services.AddTransient<IAgentWorkflow, AzureAiFoundryAgentWorkflowAdapter>();
+            var missing = new List<string>();
+            if (string.IsNullOrWhiteSpace(foundryEndpoint) || foundryEndpoint.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+                missing.Add("AzureAiFoundry:ProjectEndpoint");
+            if (string.IsNullOrWhiteSpace(foundryKey) || foundryKey.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+                missing.Add("AzureAiFoundry:ApiKey");
+            if (plannerName.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+                missing.Add("AzureAiFoundry:PlannerAgentName");
+            if (specialistName.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+                missing.Add("AzureAiFoundry:SupportSpecialistAgentName");
+            if (reviewerName.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+                missing.Add("AzureAiFoundry:ReviewerAgentName");
+
+            if (missing.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Azure AI Foundry agent workflow is enabled (UseAzureAiFoundryAgentWorkflow=true), but required configuration is missing or contains placeholder values. Missing: {string.Join(", ", missing)}.");
+            }
+
+            string openAiEndpoint = !string.IsNullOrWhiteSpace(azureEndpoint) ? azureEndpoint : ResolveOpenAiEndpoint(foundryEndpoint);
+            string openAiKey = !string.IsNullOrWhiteSpace(azureApiKey) ? azureApiKey : foundryKey;
+
+            services.AddSingleton(new AzureOpenAIClient(new Uri(openAiEndpoint), new ApiKeyCredential(openAiKey)));
+            services.AddHttpClient<AzureOpenAiFoundryClient>();
+            services.AddSingleton<IFoundryAgentClient, AzureOpenAiFoundryClient>();
+            services.AddTransient<AzureAiFoundryAgentWorkflowAdapter>();
+            services.AddTransient<IAgentWorkflow, AzureAiFoundryAgentWorkflowAdapter>();
+        }
+        else if (enableLocalFallback)
+        {
+            services.AddTransient<IAgentWorkflow, AgentWorkflowCoordinator>();
+        }
+        else
+        {
+            services.AddTransient<IAgentWorkflow, DisabledAgentWorkflow>();
+        }
 
         return services;
     }
+
+    private static string ResolveOpenAiEndpoint(string foundryEndpoint)
+    {
+        if (Uri.TryCreate(foundryEndpoint, UriKind.Absolute, out var uri))
+        {
+            if (uri.Host.EndsWith(".services.ai.azure.com", StringComparison.OrdinalIgnoreCase))
+            {
+                var resourceName = uri.Host.Substring(0, uri.Host.IndexOf(".services.ai.azure.com", StringComparison.OrdinalIgnoreCase));
+                return $"https://{resourceName}.openai.azure.com/";
+            }
+            return uri.GetLeftPart(UriPartial.Authority);
+        }
+        return foundryEndpoint;
+    }
 }
+
 

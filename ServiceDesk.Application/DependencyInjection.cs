@@ -20,7 +20,6 @@ public static class DependencyInjection
         services.AddTransient<ISupportSpecialistService, SupportSpecialistService>();
         services.AddTransient<IKnowledgeBaseService, ServiceDesk.Application.Services.Knowledge.KnowledgeBaseService>();
         services.AddTransient<AgentWorkflowCoordinator>();
-        services.AddTransient<IAgentWorkflow, AgentWorkflowCoordinator>();
 
         // Application Use Cases
         services.AddTransient<SearchKnowledgeUseCase>();
